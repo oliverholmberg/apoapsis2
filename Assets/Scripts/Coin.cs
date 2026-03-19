@@ -2,14 +2,15 @@ using UnityEngine;
 
 public class Coin : MonoBehaviour
 {
-    public float magnetRadius = 4f;
-    public float magnetStrength = 10f;
+    public float magnetRadius = 0.8f;
+    public float magnetStrength = 12f;
     public float collectRadius = 0.3f;
     public float bobSpeed = 2f;
     public float bobAmount = 0.05f;
 
     SpriteRenderer sr;
     Vector3 basePos;
+    Transform originalParent;
     float bobOffset;
     static int collected;
     public static int Collected => collected;
@@ -19,6 +20,7 @@ public class Coin : MonoBehaviour
     void Start()
     {
         basePos = transform.localPosition;
+        originalParent = transform.parent;
         bobOffset = Random.Range(0f, Mathf.PI * 2f);
 
         // Generate coin sprite
@@ -65,11 +67,13 @@ public class Coin : MonoBehaviour
     void Update()
     {
         // Gentle bob
-        transform.localPosition = basePos + Vector3.up * Mathf.Sin(Time.time * bobSpeed + bobOffset) * bobAmount;
-
         // Find rocket
         var rocket = GameObject.FindWithTag("affectedByPlanetGravity");
-        if (rocket == null) return;
+        if (rocket == null)
+        {
+            transform.localPosition = basePos + Vector3.up * Mathf.Sin(Time.time * bobSpeed + bobOffset) * bobAmount;
+            return;
+        }
 
         float dist = Vector2.Distance(transform.position, rocket.transform.position);
 
@@ -81,11 +85,24 @@ public class Coin : MonoBehaviour
             return;
         }
 
-        // Magnet
+        // Magnet — unparent so world-space movement works
         if (dist < magnetRadius)
         {
+            if (transform.parent != null)
+                transform.SetParent(null, true);
+
             Vector2 dir = ((Vector2)rocket.transform.position - (Vector2)transform.position).normalized;
             transform.position += (Vector3)(dir * magnetStrength * Time.deltaTime);
+        }
+        else
+        {
+            // Reparent back to moon if we drifted away
+            if (transform.parent == null && originalParent != null)
+            {
+                transform.SetParent(originalParent, true);
+                basePos = transform.localPosition;
+            }
+            transform.localPosition = basePos + Vector3.up * Mathf.Sin(Time.time * bobSpeed + bobOffset) * bobAmount;
         }
     }
 }
