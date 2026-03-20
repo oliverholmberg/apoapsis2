@@ -3,6 +3,7 @@ using UnityEngine;
 public class SceneBootstrap : MonoBehaviour
 {
     static SceneBootstrap instance;
+    static MenuCarousel carousel;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void AutoCreate()
@@ -10,7 +11,11 @@ public class SceneBootstrap : MonoBehaviour
         var go = new GameObject("SceneBootstrap");
         instance = go.AddComponent<SceneBootstrap>();
         DontDestroyOnLoad(go);
-        instance.BuildScene();
+
+        // Create persistent menu carousel
+        var carouselObj = new GameObject("MenuCarousel");
+        carousel = carouselObj.AddComponent<MenuCarousel>();
+        carousel.Initialize();
     }
 
     public static void Reset()
@@ -25,6 +30,13 @@ public class SceneBootstrap : MonoBehaviour
         LevelRegistry.CurrentLevel = level;
         instance.ClearScene();
         instance.BuildScene();
+    }
+
+    public static void ShowMenu()
+    {
+        instance.ClearScene();
+        if (carousel != null)
+            carousel.ReturnToLevelSelect();
     }
 
     void ClearScene()
@@ -72,6 +84,10 @@ public class SceneBootstrap : MonoBehaviour
 
     void BuildScene()
     {
+        // Hide menu carousel during gameplay
+        if (carousel != null)
+            carousel.Hide();
+
         var config = LevelRegistry.GetCurrentLevel();
         if (config == null)
         {
