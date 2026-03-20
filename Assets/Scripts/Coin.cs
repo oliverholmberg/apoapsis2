@@ -57,7 +57,7 @@ public class Coin : MonoBehaviour
         }
 
         tex.Apply();
-        var sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 48f);
+        var sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 96f);
 
         sr = gameObject.AddComponent<SpriteRenderer>();
         sr.sprite = sprite;
@@ -66,9 +66,9 @@ public class Coin : MonoBehaviour
 
     void Update()
     {
-        // Gentle bob
-        // Find rocket
-        var rocket = GameObject.FindWithTag("affectedByPlanetGravity");
+        // Find rocket specifically
+        var rocketComp = Object.FindFirstObjectByType<RocketController>();
+        var rocket = rocketComp != null ? rocketComp.gameObject : null;
         if (rocket == null)
         {
             transform.localPosition = basePos + Vector3.up * Mathf.Sin(Time.time * bobSpeed + bobOffset) * bobAmount;
@@ -81,6 +81,8 @@ public class Coin : MonoBehaviour
         if (dist < collectRadius)
         {
             collected++;
+            if (ScoreDisplay.Instance != null)
+                ScoreDisplay.Instance.AddScore(10, transform.position);
             Destroy(gameObject);
             return;
         }

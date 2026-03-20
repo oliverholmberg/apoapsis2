@@ -1,48 +1,35 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class WorldRotation : MonoBehaviour
 {
-    public float rotationSpeed = 60f;
-
     Transform cam;
     Vector3 pivot;
 
     void Start()
     {
         cam = Camera.main.transform;
-        pivot = transform.position; // planet center
+        pivot = transform.position;
     }
 
     void Update()
     {
-        float input = 0f;
+        if (InputManager.Instance == null) return;
 
-        if (Keyboard.current != null)
-        {
-            if (Keyboard.current.leftArrowKey.isPressed) input += 1f;
-            if (Keyboard.current.rightArrowKey.isPressed) input -= 1f;
-        }
-
-        if (input == 0f) return;
-
-        float angle = input * rotationSpeed * Time.deltaTime;
+        float angle = InputManager.Instance.DragDelta;
+        if (angle == 0f) return;
 
         // Rotate camera around planet center
         cam.RotateAround(pivot, Vector3.forward, angle);
 
-        // Pre-launch: rotate rocket with the world so player can aim
-        var rocket = GameObject.FindWithTag("affectedByPlanetGravity");
-        if (rocket != null)
+        // Pre-launch: rotate rocket with the world
+        var rc = Object.FindFirstObjectByType<RocketController>();
+        if (rc != null && !rc.HasLaunched)
         {
-            var rc = rocket.GetComponent<RocketController>();
-            if (rc != null && !rc.HasLaunched)
-            {
-                Vector3 offset = rocket.transform.position - pivot;
-                Quaternion rot = Quaternion.Euler(0f, 0f, angle);
-                rocket.transform.position = pivot + rot * offset;
-                rocket.transform.rotation *= rot;
-            }
+            var rocket = rc.gameObject;
+            Vector3 offset = rocket.transform.position - pivot;
+            Quaternion rot = Quaternion.Euler(0f, 0f, angle);
+            rocket.transform.position = pivot + rot * offset;
+            rocket.transform.rotation *= rot;
         }
     }
 }

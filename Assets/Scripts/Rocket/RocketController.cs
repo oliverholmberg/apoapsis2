@@ -5,7 +5,7 @@ public class RocketController : MonoBehaviour
 {
     [Header("Movement")]
     public float thrustForce = 8f;
-    public float maxSpeed = 7f;
+    public float maxSpeed = 8f;
     public float launchSpeed = 3f;
     public float brakeFactor = 3f;
     public float minSpeed = 0.8f;
@@ -18,6 +18,12 @@ public class RocketController : MonoBehaviour
     public bool HasLaunched { get; private set; }
     SpriteRenderer spriteRenderer;
     SpriteRenderer exhaustRenderer;
+    ParticleSystem exhaustParticles;
+    RocketTrail trail;
+
+    // Near miss tracking
+    public float nearMissRadius = 0.8f;
+    readonly System.Collections.Generic.HashSet<int> nearMissed = new();
 
     void Awake()
     {
@@ -42,162 +48,133 @@ public class RocketController : MonoBehaviour
             spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
         spriteRenderer.sortingOrder = 10;
 
+        // Near-miss trigger zone
+        var nearMissTrigger = gameObject.AddComponent<CircleCollider2D>();
+        nearMissTrigger.radius = nearMissRadius;
+        nearMissTrigger.isTrigger = true;
+
         GenerateRocketSprite();
         CreateExhaust();
+        CreateTrail();
     }
 
     void GenerateRocketSprite()
     {
-        int w = 48, h = 72;
-        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Bilinear;
-        tex.wrapMode = TextureWrapMode.Clamp;
-
-        Color[] clear = new Color[w * h];
-        tex.SetPixels(clear);
-
-        int cx = w / 2;
-        Color red = new Color(0.85f, 0.1f, 0.1f);
-        Color darkRed = new Color(0.6f, 0.05f, 0.05f);
-        Color stripe = new Color(0.95f, 0.95f, 0.95f);
-        Color window = new Color(0.4f, 0.7f, 1f);
-        Color windowHighlight = new Color(0.7f, 0.9f, 1f);
-        Color tipColor = new Color(0.9f, 0.9f, 0.9f);
-        Color finColor = new Color(0.7f, 0.08f, 0.08f);
-
-        for (int y = 0; y < h; y++)
+        var tex = Resources.Load<Texture2D>("Sprites/rocket2");
+        if (tex != null)
         {
-            for (int x = 0; x < w; x++)
-            {
-                float halfWidth = 0f;
-                bool filled = false;
-
-                // Nose cone (top 30%)
-                if (y >= h * 0.7f)
-                {
-                    float t = (y - h * 0.7f) / (h * 0.3f);
-                    halfWidth = (1f - t) * (w * 0.28f);
-                    filled = Mathf.Abs(x - cx) <= halfWidth;
-                }
-                // Body (15%-70%)
-                else if (y >= h * 0.15f)
-                {
-                    halfWidth = w * 0.28f;
-                    filled = Mathf.Abs(x - cx) <= halfWidth;
-                }
-                // Fins (bottom 15%)
-                else
-                {
-                    float t = (float)y / (h * 0.15f);
-                    halfWidth = w * 0.28f + (1f - t) * (w * 0.2f);
-                    filled = Mathf.Abs(x - cx) <= halfWidth;
-                    if (filled)
-                    {
-                        // Fin color - darker for the extended fin parts
-                        if (Mathf.Abs(x - cx) > w * 0.28f)
-                            tex.SetPixel(x, y, finColor);
-                        else
-                            tex.SetPixel(x, y, red);
-                        continue;
-                    }
-                }
-
-                if (!filled) continue;
-
-                // Window — circular, centered around 60% height
-                float wy = h * 0.6f;
-                float windowRadius = w * 0.12f;
-                float dx = x - cx;
-                float dy = y - wy;
-                float distToWindow = Mathf.Sqrt(dx * dx + dy * dy);
-                if (distToWindow <= windowRadius)
-                {
-                    float wt = distToWindow / windowRadius;
-                    Color wc = Color.Lerp(windowHighlight, window, wt);
-                    // Small highlight in upper-left of window
-                    if (dx < -windowRadius * 0.2f && dy > windowRadius * 0.2f)
-                        wc = Color.Lerp(wc, Color.white, 0.3f);
-                    tex.SetPixel(x, y, wc);
-                    continue;
-                }
-
-                // White racing stripe — vertical, offset to one side
-                float stripeCenter = cx + w * 0.12f;
-                float stripeWidth = w * 0.06f;
-                if (Mathf.Abs(x - stripeCenter) <= stripeWidth && y >= h * 0.15f && y <= h * 0.85f)
-                {
-                    tex.SetPixel(x, y, stripe);
-                    continue;
-                }
-
-                // Body shading — lighter on left, darker on right for roundness
-                float shade = (float)(x - (cx - halfWidth)) / (halfWidth * 2f);
-                Color bodyColor = Color.Lerp(red, darkRed, shade * shade);
-
-                // Edge highlight
-                float edgeDist = Mathf.Abs(x - cx) / halfWidth;
-                if (edgeDist > 0.85f)
-                    bodyColor = Color.Lerp(bodyColor, darkRed, (edgeDist - 0.85f) / 0.15f);
-
-                tex.SetPixel(x, y, bodyColor);
-            }
+            // Pivot at 0.5, 0.3 — bottom-heavy so exhaust aligns
+            float pixelsPerUnit = tex.height / 1.2f; // ~1.2 world units tall
+            var sprite = Sprite.Create(tex,
+                new Rect(0, 0, tex.width, tex.height),
+                new Vector2(0.5f, 0.3f),
+                pixelsPerUnit);
+            spriteRenderer.sprite = sprite;
         }
-
-        tex.Apply();
-        var sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.3f), 64f);
-        spriteRenderer.sprite = sprite;
+        else
+        {
+            Debug.LogWarning("Rocket sprite not found at Resources/Sprites/rocket");
+        }
     }
 
     void CreateExhaust()
     {
+        // Static flame sprite
         var exhaustObj = new GameObject("Exhaust");
         exhaustObj.transform.SetParent(transform, false);
-        exhaustObj.transform.localPosition = new Vector3(0f, -0.5f, 0f);
+        exhaustObj.transform.localPosition = new Vector3(0f, -0.4f, 0f);
 
         exhaustRenderer = exhaustObj.AddComponent<SpriteRenderer>();
         exhaustRenderer.sortingOrder = 9;
 
-        int size = 16;
-        var tex = new Texture2D(size, size * 2, TextureFormat.RGBA32, false);
+        int w = 24, h = 48;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
+        Color[] clear = new Color[w * h];
+        tex.SetPixels(clear);
 
-        int cx = size / 2;
-        int h = size * 2;
-
+        int cx = w / 2;
         for (int y = 0; y < h; y++)
         {
-            for (int x = 0; x < size; x++)
+            float t = (float)y / h; // 0 at bottom (tip), 1 at top (base)
+            float halfWidth = t * (w * 0.45f);
+            for (int x = 0; x < w; x++)
             {
-                float progress = (float)y / h;
-                float halfWidth = progress * (size * 0.4f);
-                if (Mathf.Abs(x - cx) <= halfWidth)
+                float dx = Mathf.Abs(x - cx);
+                if (dx <= halfWidth)
                 {
-                    Color c = Color.Lerp(exhaustColor, new Color(1f, 1f, 0f), progress);
-                    c.a = progress;
+                    float edgeFade = 1f - (dx / Mathf.Max(halfWidth, 0.01f));
+                    // Hot white core → orange → red tip
+                    Color c;
+                    if (t > 0.7f)
+                        c = Color.Lerp(new Color(1f, 0.9f, 0.7f), new Color(1f, 1f, 0.9f), edgeFade * 0.5f);
+                    else if (t > 0.3f)
+                        c = Color.Lerp(new Color(1f, 0.4f, 0f), new Color(1f, 0.7f, 0.2f), edgeFade);
+                    else
+                        c = Color.Lerp(new Color(0.8f, 0.1f, 0f), exhaustColor, edgeFade);
+
+                    c.a = Mathf.Lerp(0.3f, 0.9f, t) * edgeFade;
                     tex.SetPixel(x, y, c);
-                }
-                else
-                {
-                    tex.SetPixel(x, y, Color.clear);
                 }
             }
         }
-
         tex.Apply();
-        var sprite = Sprite.Create(tex, new Rect(0, 0, size, h), new Vector2(0.5f, 1f), 64f);
+        var sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 1f), 48f);
         exhaustRenderer.sprite = sprite;
         exhaustObj.SetActive(false);
+
+        // Particle emitter for sparks
+        var particleObj = new GameObject("ExhaustParticles");
+        particleObj.transform.SetParent(transform, false);
+        particleObj.transform.localPosition = new Vector3(0f, -0.5f, 0f);
+        particleObj.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
+
+        exhaustParticles = particleObj.AddComponent<ParticleSystem>();
+        var main = exhaustParticles.main;
+        main.startLifetime = 0.3f;
+        main.startSpeed = new ParticleSystem.MinMaxCurve(2f, 5f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.08f);
+        main.maxParticles = 60;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startColor = new ParticleSystem.MinMaxGradient(
+            new Color(1f, 0.6f, 0.1f),
+            new Color(1f, 0.9f, 0.4f)
+        );
+
+        var emission = exhaustParticles.emission;
+        emission.rateOverTime = 80;
+
+        var shape = exhaustParticles.shape;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle = 15f;
+        shape.radius = 0.05f;
+
+        var sizeOverLifetime = exhaustParticles.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0, 1, 1, 0));
+
+        var colorOverLifetime = exhaustParticles.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        var alphaGrad = new Gradient();
+        alphaGrad.SetKeys(
+            new GradientColorKey[] { new(new Color(1f, 0.7f, 0.3f), 0f), new(new Color(1f, 0.2f, 0f), 1f) },
+            new GradientAlphaKey[] { new(0.8f, 0f), new(0f, 1f) }
+        );
+        colorOverLifetime.color = alphaGrad;
+
+        var renderer = particleObj.GetComponent<ParticleSystemRenderer>();
+        renderer.material = new Material(Shader.Find("Sprites/Default"));
+        renderer.sortingOrder = 8;
+
+        exhaustParticles.Stop();
     }
 
-    public bool IsThrusting => CheckThrusting();
-
-    bool CheckThrusting()
+    void CreateTrail()
     {
-        if (Keyboard.current != null && Keyboard.current.spaceKey.isPressed) return true;
-        if (Mouse.current != null && Mouse.current.leftButton.isPressed) return true;
-        if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.isPressed) return true;
-        return false;
+        trail = gameObject.AddComponent<RocketTrail>();
     }
+
+    public bool IsThrusting => InputManager.Instance != null && InputManager.Instance.IsThrusting();
 
     void Update()
     {
@@ -211,8 +188,18 @@ public class RocketController : MonoBehaviour
         bool thrusting = IsThrusting;
 
         // Show/hide exhaust
+        bool showExhaust = thrusting && HasLaunched;
         if (exhaustRenderer != null)
-            exhaustRenderer.gameObject.SetActive(thrusting && HasLaunched);
+            exhaustRenderer.gameObject.SetActive(showExhaust);
+        if (exhaustParticles != null)
+        {
+            if (showExhaust && !exhaustParticles.isPlaying) exhaustParticles.Play();
+            else if (!showExhaust && exhaustParticles.isPlaying) exhaustParticles.Stop();
+        }
+
+        // Trail emits whenever launched
+        if (trail != null)
+            trail.SetEmitting(HasLaunched);
 
         // Launch on first thrust
         if (!HasLaunched && thrusting)
@@ -227,6 +214,8 @@ public class RocketController : MonoBehaviour
             float angle = Mathf.Atan2(rb.linearVelocity.y, rb.linearVelocity.x) * Mathf.Rad2Deg - 90f;
             transform.rotation = Quaternion.Euler(0f, 0f, angle);
         }
+
+        CheckMoonNearMiss();
     }
 
     void FixedUpdate()
@@ -262,12 +251,56 @@ public class RocketController : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D collision)
     {
+        ExplosionFX.Spawn(transform.position, new Color(1f, 0.4f, 0.1f));
+
         rb.linearVelocity = Vector2.zero;
         rb.simulated = false;
         if (exhaustRenderer != null)
             exhaustRenderer.gameObject.SetActive(false);
+        if (exhaustParticles != null)
+            exhaustParticles.Stop();
+        if (trail != null)
+            trail.SetEmitting(false);
+        spriteRenderer.enabled = false;
 
         var gm = Object.FindFirstObjectByType<GameManager>();
         if (gm != null) gm.OnCrashed();
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (!HasLaunched) return;
+
+        // Near miss with satellites or asteroids (score once per object)
+        bool isHazard = other.GetComponent<Satellite>() != null || other.GetComponent<Asteroid>() != null;
+        if (!isHazard) return;
+
+        int id = other.gameObject.GetInstanceID();
+        if (nearMissed.Contains(id)) return;
+        nearMissed.Add(id);
+
+        if (ScoreDisplay.Instance != null)
+            ScoreDisplay.Instance.AddScore(25, other.transform.position);
+    }
+
+    void CheckMoonNearMiss()
+    {
+        if (!HasLaunched) return;
+
+        Moon[] moons = Object.FindObjectsByType<Moon>(FindObjectsSortMode.None);
+        foreach (Moon m in moons)
+        {
+            int id = m.gameObject.GetInstanceID();
+            if (nearMissed.Contains(id)) continue;
+
+            float dist = Vector2.Distance(transform.position, m.transform.position);
+            float surfaceDist = dist - m.radius;
+            if (surfaceDist > 0f && surfaceDist < nearMissRadius)
+            {
+                nearMissed.Add(id);
+                if (ScoreDisplay.Instance != null)
+                    ScoreDisplay.Instance.AddScore(25, m.transform.position);
+            }
+        }
     }
 }

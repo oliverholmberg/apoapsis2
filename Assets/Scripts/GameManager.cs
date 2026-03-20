@@ -9,6 +9,7 @@ public class GameManager : MonoBehaviour
 
     RocketController rocket;
     OrbitDetector orbitDetector;
+    StateOverlay overlay;
     Vector3 planetCenter;
 
     public void Initialize(RocketController rocketRef, Vector3 planetPos)
@@ -18,6 +19,11 @@ public class GameManager : MonoBehaviour
 
         orbitDetector = rocket.gameObject.AddComponent<OrbitDetector>();
         orbitDetector.OnOrbitComplete += OnOrbitComplete;
+
+        // Create UI overlay
+        var overlayObj = new GameObject("StateOverlay");
+        overlay = overlayObj.AddComponent<StateOverlay>();
+        overlay.Initialize();
     }
 
     void Update()
@@ -35,8 +41,8 @@ public class GameManager : MonoBehaviour
             if (dist > lostInSpaceDistance)
             {
                 state = GameState.LostInSpace;
-                Debug.Log("LOST IN SPACE");
                 FreezeRocket();
+                overlay.ShowLostInSpace();
             }
         }
     }
@@ -48,22 +54,31 @@ public class GameManager : MonoBehaviour
         Debug.Log($"ORBIT COMPLETE: {moon.gameObject.name}");
         moon.MarkCompleted();
 
-        // Check if all moons are done
+        if (ScoreDisplay.Instance != null)
+            ScoreDisplay.Instance.AddScore(50, moon.transform.position);
+
         Moon[] allMoons = Object.FindObjectsByType<Moon>(FindObjectsSortMode.None);
         foreach (Moon m in allMoons)
         {
             if (!m.Completed) return;
         }
 
+        // All coins bonus
+        int totalCoins = 0;
+        foreach (Moon m in allMoons) totalCoins += m.coinCount;
+        if (Coin.Collected >= totalCoins && totalCoins > 0 && ScoreDisplay.Instance != null)
+            ScoreDisplay.Instance.AddScore(100);
+
         state = GameState.LevelComplete;
-        Debug.Log("LEVEL COMPLETE!");
+        int finalScore = ScoreDisplay.Instance != null ? ScoreDisplay.Instance.score : 0;
+        overlay.ShowWin(finalScore);
     }
 
     public void OnCrashed()
     {
         if (state != GameState.Flying) return;
         state = GameState.Crashed;
-        Debug.Log("CRASHED");
+        overlay.ShowCrash();
     }
 
     void FreezeRocket()

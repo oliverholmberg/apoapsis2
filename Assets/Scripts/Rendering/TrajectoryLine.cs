@@ -22,18 +22,18 @@ public class TrajectoryLine : MonoBehaviour
         lr.sortingOrder = 5;
         lr.positionCount = 0;
 
-        var rocket = GameObject.FindWithTag("affectedByPlanetGravity");
-        if (rocket != null)
-            rocketRb = rocket.GetComponent<Rigidbody2D>();
+        var rc = Object.FindFirstObjectByType<RocketController>();
+        if (rc != null)
+            rocketRb = rc.GetComponent<Rigidbody2D>();
     }
 
     void Update()
     {
         if (rocketRb == null)
         {
-            var rocket = GameObject.FindWithTag("affectedByPlanetGravity");
-            if (rocket != null)
-                rocketRb = rocket.GetComponent<Rigidbody2D>();
+            var rc = Object.FindFirstObjectByType<RocketController>();
+            if (rc != null)
+                rocketRb = rc.GetComponent<Rigidbody2D>();
         }
 
         if (rocketRb == null || !rocketRb.simulated || rocketRb.linearVelocity.magnitude < 0.01f)

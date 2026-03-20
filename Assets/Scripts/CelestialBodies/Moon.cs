@@ -8,15 +8,17 @@ public class Moon : CelestialBody
     public int proximityModifier = 195;
 
     [Header("SOI Visual")]
-    public Color soiColor = new Color(0f, 1f, 1f, 0.3f);
-    public float soiLineWidth = 0.08f;
+    public Color soiColor = new Color(0f, 1f, 1f, 0.1f);
+    public float soiLineWidth = 0.04f;
 
     [Header("SOI Entry")]
-    public float soiEntrySpeedReduction = 0.35f; // multiplier applied once on entry
+    public float entryDragBoost = 2f;
+    public float entryDragDuration = 0.8f;
 
     float scaledMass;
     public bool Completed { get; private set; }
     readonly System.Collections.Generic.HashSet<int> insideSOI = new();
+    readonly System.Collections.Generic.Dictionary<int, float> entryTimers = new();
 
     public void MarkCompleted()
     {
@@ -66,17 +68,28 @@ public class Moon : CelestialBody
 
             if (orbitalDistance < soiRadius)
             {
-                // Slow down on SOI entry — more braking when heading straight at the moon
                 int id = gravBody.GetInstanceID();
                 if (!insideSOI.Contains(id))
                 {
                     insideSOI.Add(id);
-                    rb.linearDamping = 0.05f; // restore damping inside SOI
-                    Vector2 toMoon = ((Vector2)transform.position - rb.position).normalized;
-                    Vector2 velDir = rb.linearVelocity.normalized;
-                    float headOn = Mathf.Clamp01(Vector2.Dot(velDir, toMoon)); // 1 = straight at moon, 0 = tangential
-                    float reduction = Mathf.Lerp(1f, soiEntrySpeedReduction, headOn);
-                    rb.linearVelocity *= reduction;
+                    entryTimers[id] = entryDragDuration;
+                }
+
+                // Skip damping for satellites — they need stable orbits
+                bool isSatellite = gravBody.GetComponent<Satellite>() != null || gravBody.GetComponent<Asteroid>() != null;
+                if (!isSatellite)
+                {
+                    // Smooth braking after SOI entry — high drag that fades
+                    if (entryTimers.TryGetValue(id, out float timer) && timer > 0f)
+                    {
+                        float t = timer / entryDragDuration; // 1 at entry, fades to 0
+                        rb.linearDamping = Mathf.Lerp(0.05f, entryDragBoost, t);
+                        entryTimers[id] = timer - Time.fixedDeltaTime;
+                    }
+                    else
+                    {
+                        rb.linearDamping = 0.05f;
+                    }
                 }
 
                 Vector3 offset = transform.position - rb.transform.position;
@@ -99,7 +112,9 @@ public class Moon : CelestialBody
             }
             else
             {
-                if (insideSOI.Remove(gravBody.GetInstanceID()))
+                int exitId = gravBody.GetInstanceID();
+                entryTimers.Remove(exitId);
+                if (insideSOI.Remove(exitId))
                 {
                     // Disable damping when leaving all SOIs
                     bool inAnySoi = false;
