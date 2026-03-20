@@ -271,6 +271,10 @@ public class RocketController : MonoBehaviour
     {
         if (!HasLaunched) return;
 
+        // No near misses after level complete
+        var gm = Object.FindFirstObjectByType<GameManager>();
+        if (gm != null && gm.IsLevelComplete) return;
+
         // Near miss with satellites or asteroids (score once per object)
         bool isHazard = other.GetComponent<Satellite>() != null || other.GetComponent<Asteroid>() != null;
         if (!isHazard) return;
@@ -286,6 +290,9 @@ public class RocketController : MonoBehaviour
     void CheckMoonNearMiss()
     {
         if (!HasLaunched) return;
+
+        var gm = Object.FindFirstObjectByType<GameManager>();
+        if (gm != null && gm.IsLevelComplete) return;
 
         Moon[] moons = Object.FindObjectsByType<Moon>(FindObjectsSortMode.None);
         foreach (Moon m in moons)

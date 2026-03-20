@@ -7,6 +7,8 @@ public class GameManager : MonoBehaviour
     enum GameState { PreLaunch, Flying, LevelComplete, Crashed, LostInSpace }
     GameState state = GameState.PreLaunch;
 
+    public bool IsLevelComplete => state == GameState.LevelComplete;
+
     RocketController rocket;
     OrbitDetector orbitDetector;
     StateOverlay overlay;
