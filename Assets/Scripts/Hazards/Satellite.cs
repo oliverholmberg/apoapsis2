@@ -1,0 +1,84 @@
+using UnityEngine;
+
+public class Satellite : MonoBehaviour
+{
+    public float radius = 0.25f;
+    public Color coreColor = new Color(1f, 0.4f, 0f);
+    public Color rimColor = new Color(1f, 0.8f, 0.2f);
+
+    Rigidbody2D rb;
+    SpriteRenderer spriteRenderer;
+
+    void Awake()
+    {
+        gameObject.tag = "affectedByPlanetGravity";
+        gameObject.layer = 0;
+
+        rb = gameObject.AddComponent<Rigidbody2D>();
+        rb.gravityScale = 0f;
+        rb.linearDamping = 0f;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+        var col = gameObject.AddComponent<CircleCollider2D>();
+        col.radius = radius;
+
+        spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+        spriteRenderer.sortingOrder = 4;
+        GenerateVisual();
+    }
+
+    public void SetOrbitalVelocity(Vector2 velocity)
+    {
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        rb.linearVelocity = velocity;
+    }
+
+    /// Pre-register this satellite as already inside a moon's SOI to skip entry drag
+    public void RegisterInSOI(Moon moon)
+    {
+        // Mark as already tracked so entry drag doesn't fire
+        var id = gameObject.GetInstanceID();
+        var insideField = typeof(Moon).GetField("insideSOI", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (insideField != null)
+        {
+            var set = insideField.GetValue(moon) as System.Collections.Generic.HashSet<int>;
+            set?.Add(id);
+        }
+    }
+
+    void GenerateVisual()
+    {
+        int res = 64;
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        int half = res / 2;
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float dx = x - half;
+                float dy = y - half;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float t = dist / half;
+
+                if (t > 1f)
+                    tex.SetPixel(x, y, Color.clear);
+                else
+                {
+                    Color c = Color.Lerp(coreColor, rimColor, t * t);
+                    c.a = 1f;
+                    tex.SetPixel(x, y, c);
+                }
+            }
+        }
+
+        tex.Apply();
+        float pixelsPerUnit = res / (radius * 2f);
+        var sprite = Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), pixelsPerUnit);
+        spriteRenderer.sprite = sprite;
+    }
+}
