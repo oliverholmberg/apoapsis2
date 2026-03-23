@@ -204,7 +204,7 @@ public class MenuCarousel : MonoBehaviour
         var config = LevelRegistry.GetLevel(chapter, level);
         if (config == null) return;
 
-        Color bodyColor = config.planet.rimColor;
+        var pc = config.planet;
 
         var btnObj = new GameObject($"Level_{chapter}_{level}");
         btnObj.transform.SetParent(parent, false);
@@ -214,14 +214,15 @@ public class MenuCarousel : MonoBehaviour
         btnRect.sizeDelta = new Vector2(90, 90);
         btnRect.anchoredPosition = pos;
 
+        // Render planet shader to texture for this button
         var btnImg = btnObj.AddComponent<Image>();
-        btnImg.sprite = GenerateCircleSprite(bodyColor);
+        btnImg.sprite = RenderPlanetSprite(pc.style, pc.coreColor, pc.rimColor, pc.atmosphereColor);
 
         var btn = btnObj.AddComponent<Button>();
         btn.targetGraphic = btnImg;
         var colors = btn.colors;
         colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
+        colors.highlightedColor = new Color(1.3f, 1.3f, 1.3f, 1f);
         colors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
         btn.colors = colors;
         btn.onClick.AddListener(() =>
@@ -230,16 +231,16 @@ public class MenuCarousel : MonoBehaviour
             SceneBootstrap.LoadLevel(chapter, level);
         });
 
-        // Ring
+        // Atmosphere ring using the planet's atmosphere color
         var ringObj = new GameObject("Ring");
         ringObj.transform.SetParent(btnObj.transform, false);
         var ringRect = ringObj.AddComponent<RectTransform>();
         ringRect.anchorMin = Vector2.zero;
         ringRect.anchorMax = Vector2.one;
-        ringRect.sizeDelta = new Vector2(10, 10);
+        ringRect.sizeDelta = new Vector2(14, 14);
         var ringImg = ringObj.AddComponent<Image>();
-        ringImg.sprite = GenerateCircleRing(bodyColor);
-        ringImg.color = new Color(1f, 1f, 1f, 0.4f);
+        ringImg.sprite = GenerateCircleRing(pc.atmosphereColor);
+        ringImg.color = new Color(1f, 1f, 1f, 0.5f);
         ringImg.raycastTarget = false;
 
         // Label
@@ -381,6 +382,41 @@ public class MenuCarousel : MonoBehaviour
         lblRect.anchorMin = Vector2.zero;
         lblRect.anchorMax = Vector2.one;
         lblRect.sizeDelta = Vector2.zero;
+    }
+
+    Sprite RenderPlanetSprite(BodyStyle style, Color coreColor, Color rimColor, Color atmoColor)
+    {
+        int res = 128;
+        var mat = BodyPresets.CreateMaterial(style, coreColor, rimColor, atmoColor);
+
+        // Render the shader to a RenderTexture
+        var rt = RenderTexture.GetTemporary(res, res, 0, RenderTextureFormat.ARGB32);
+        rt.filterMode = FilterMode.Bilinear;
+
+        // For off-screen rendering, disable blending so alpha writes correctly
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
+
+        // Clear to transparent before rendering
+        var prev = RenderTexture.active;
+        RenderTexture.active = rt;
+        GL.Clear(true, true, Color.clear);
+        RenderTexture.active = prev;
+
+        Graphics.Blit(null, rt, mat);
+
+        // Read back to Texture2D
+        RenderTexture.active = rt;
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.ReadPixels(new Rect(0, 0, res, res), 0, 0);
+        tex.Apply();
+
+        RenderTexture.active = prev;
+        RenderTexture.ReleaseTemporary(rt);
+        Object.Destroy(mat);
+
+        return Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), res);
     }
 
     Sprite GenerateCircleSprite(Color rimColor)

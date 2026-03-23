@@ -20,6 +20,8 @@ public class PlanetConfig
     public Color rimColor = new Color(1f, 0f, 0.8f);
     public string surfaceTexture = "";
     public float surfaceOpacity = 0.3f;
+    public BodyStyle style = BodyStyle.NeonMarble;
+    public Color atmosphereColor = new Color(0.5f, 0.8f, 1f);
 }
 
 [System.Serializable]
@@ -33,6 +35,8 @@ public class MoonConfig
     public Color rimColor = new Color(0f, 1f, 1f);
     public string surfaceTexture = "";
     public float surfaceOpacity = 0.3f;
+    public BodyStyle style = BodyStyle.CrateredMoon;
+    public Color atmosphereColor = new Color(0.5f, 0.8f, 1f);
     public int coinCount = 12;
     public float coinOrbitRadius = 2.5f;
     public SatelliteConfig[] satellites;

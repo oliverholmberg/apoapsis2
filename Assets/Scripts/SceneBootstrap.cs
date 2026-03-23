@@ -126,15 +126,15 @@ public class SceneBootstrap : MonoBehaviour
         planetBody.radius = config.planet.radius;
         planetBody.coreColor = config.planet.coreColor;
         planetBody.rimColor = config.planet.rimColor;
-        planetBody.surfaceTextureName = config.planet.surfaceTexture;
-        planetBody.surfaceOpacity = config.planet.surfaceOpacity;
+        planetBody.bodyStyle = config.planet.style;
+        planetBody.atmosphereColor = config.planet.atmosphereColor;
 
         // Planet rim glow
         var rim = new GameObject("Rim");
         rim.transform.SetParent(planet.transform, false);
         var rimCircle = rim.AddComponent<CircleRenderer>();
         rimCircle.radius = config.planet.radius;
-        rimCircle.color = new Color(config.planet.rimColor.r, config.planet.rimColor.g, config.planet.rimColor.b, 0.8f);
+        rimCircle.color = new Color(config.planet.atmosphereColor.r, config.planet.atmosphereColor.g, config.planet.atmosphereColor.b, 0.8f);
         rimCircle.lineWidth = 0.1f;
         rimCircle.sortingOrder = 1;
 
@@ -151,8 +151,8 @@ public class SceneBootstrap : MonoBehaviour
             moon.soiRadius = mc.soiRadius;
             moon.coreColor = mc.coreColor;
             moon.rimColor = mc.rimColor;
-            moon.surfaceTextureName = mc.surfaceTexture;
-            moon.surfaceOpacity = mc.surfaceOpacity;
+            moon.bodyStyle = mc.style;
+            moon.atmosphereColor = mc.atmosphereColor;
             moon.coinCount = mc.coinCount;
             moon.coinOrbitRadius = mc.coinOrbitRadius;
 
