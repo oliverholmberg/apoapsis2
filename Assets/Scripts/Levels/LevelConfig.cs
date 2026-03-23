@@ -50,6 +50,8 @@ public class SatelliteConfig
     public float radius = 0.2f;
     public Color coreColor = new Color(1f, 0.4f, 0f);
     public Color rimColor = new Color(1f, 0.8f, 0.2f);
+    public BodyStyle style = BodyStyle.CrateredMoon;
+    public Color atmosphereColor = new Color(1f, 0.6f, 0.2f);
 }
 
 [System.Serializable]

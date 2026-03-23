@@ -8,6 +8,7 @@ public class ScoreDisplay : MonoBehaviour
     Font font;
     GUIStyle scoreStyle;
     GUIStyle popStyle;
+    GUIStyle levelStyle;
 
     // Pop-up feedback
     string popText = "";
@@ -68,7 +69,20 @@ public class ScoreDisplay : MonoBehaviour
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold
             };
+
+            levelStyle = new GUIStyle
+            {
+                font = font,
+                fontSize = 24,
+                alignment = TextAnchor.UpperRight,
+                fontStyle = FontStyle.Bold
+            };
+            levelStyle.normal.textColor = new Color(1f, 1f, 1f, 0.5f);
         }
+
+        // Level indicator at top right
+        string levelText = $"{LevelRegistry.CurrentChapter}-{LevelRegistry.CurrentLevel}";
+        GUI.Label(new Rect(Screen.width - 130, 15, 115, 40), levelText, levelStyle);
 
         // Score at top center
         GUI.Label(new Rect(Screen.width / 2f - 150, 15, 300, 50), score.ToString(), scoreStyle);

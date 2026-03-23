@@ -16,6 +16,7 @@ public class RocketController : MonoBehaviour
 
     Rigidbody2D rb;
     public bool HasLaunched { get; private set; }
+    bool dead;
     SpriteRenderer spriteRenderer;
     SpriteRenderer exhaustRenderer;
     ParticleSystem exhaustParticles;
@@ -188,7 +189,7 @@ public class RocketController : MonoBehaviour
         bool thrusting = IsThrusting;
 
         // Show/hide exhaust
-        bool showExhaust = thrusting && HasLaunched;
+        bool showExhaust = thrusting && HasLaunched && !dead;
         if (exhaustRenderer != null)
             exhaustRenderer.gameObject.SetActive(showExhaust);
         if (exhaustParticles != null)
@@ -251,6 +252,7 @@ public class RocketController : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D collision)
     {
+        dead = true;
         ExplosionFX.Spawn(transform.position, new Color(1f, 0.4f, 0.1f));
 
         rb.linearVelocity = Vector2.zero;
@@ -258,7 +260,7 @@ public class RocketController : MonoBehaviour
         if (exhaustRenderer != null)
             exhaustRenderer.gameObject.SetActive(false);
         if (exhaustParticles != null)
-            exhaustParticles.Stop();
+            exhaustParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         if (trail != null)
             trail.SetEmitting(false);
         spriteRenderer.enabled = false;

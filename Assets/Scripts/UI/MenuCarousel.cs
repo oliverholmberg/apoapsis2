@@ -6,6 +6,7 @@ public class MenuCarousel : MonoBehaviour
     public static MenuCarousel Instance { get; private set; }
 
     int currentStop; // 0=title, 1=ch1, 2=ch2, 3=ch3
+    public GameObject ClockPivot => clockPivot;
     GameObject clockPivot;
     float currentAngle;
     float targetAngle;
@@ -19,6 +20,16 @@ public class MenuCarousel : MonoBehaviour
 
     // Clock layout
     float clockRadius = 18f;
+    GameObject[] screenObjects;
+
+    // Title fly-in animation
+    RectTransform titleRect;
+    RectTransform subtitleRect;
+    CanvasGroup titleGroup;
+    CanvasGroup subtitleGroup;
+    float titleAnimTimer;
+    float titleAnimDuration = 2.5f;
+    bool titleAnimating;
 
     void Awake()
     {
@@ -62,6 +73,7 @@ public class MenuCarousel : MonoBehaviour
         // 3 o'clock (right):   position (R, 0),   rotation -90° (content rotated CW)
         // 6 o'clock (bottom):  position (0, -R),  rotation 180° (upside down)
         // 9 o'clock (left):    position (-R, 0),  rotation 90° (content rotated CCW)
+        screenObjects = new GameObject[4];
         BuildScreen(0, new Vector3(0f, clockRadius, 0f), 0f, BuildTitleContent);
         BuildScreen(1, new Vector3(clockRadius, 0f, 0f), -90f, (parent) => BuildChapterContent(parent, 1));
         // Only build additional chapters if they exist
@@ -98,93 +110,142 @@ public class MenuCarousel : MonoBehaviour
         rect.localScale = new Vector3(0.018f, 0.018f, 1f); // 1920 * 0.018 = ~34 world units, oversized for readability
 
         buildContent(screenObj.transform);
+        screenObjects[index] = screenObj;
     }
 
     void BuildTitleContent(Transform parent)
     {
-        // Title text via world-space Text
+        // Title text
         var titleObj = new GameObject("Title");
         titleObj.transform.SetParent(parent, false);
-        var titleText = titleObj.AddComponent<Text>();
-        titleText.font = titleFont;
-        titleText.text = "APOAPSIS";
-        titleText.fontSize = 140;
-        titleText.fontStyle = FontStyle.Bold;
-        titleText.alignment = TextAnchor.MiddleCenter;
-        titleText.color = new Color(0.6f, 0.8f, 1f);
-        titleText.raycastTarget = false;
-        var titleRect = titleObj.GetComponent<RectTransform>();
+        titleGroup = titleObj.AddComponent<CanvasGroup>();
+        var titleTextComp = titleObj.AddComponent<Text>();
+        titleTextComp.font = titleFont;
+        titleTextComp.text = "APOAPSIS II";
+        titleTextComp.fontSize = 420;
+        titleTextComp.fontStyle = FontStyle.Bold;
+        titleTextComp.alignment = TextAnchor.MiddleCenter;
+        titleTextComp.color = Color.white;
+        titleTextComp.raycastTarget = false;
+        titleTextComp.horizontalOverflow = HorizontalWrapMode.Overflow;
+        titleTextComp.verticalOverflow = VerticalWrapMode.Overflow;
+        titleRect = titleObj.GetComponent<RectTransform>();
         titleRect.anchorMin = new Vector2(0.5f, 0.5f);
         titleRect.anchorMax = new Vector2(0.5f, 0.5f);
-        titleRect.sizeDelta = new Vector2(800, 100);
-        titleRect.anchoredPosition = new Vector2(0f, 200f);
+        titleRect.sizeDelta = new Vector2(1800, 450);
+        titleRect.anchoredPosition = new Vector2(0f, 150f);
+
+        // Subtle glow via outline
+        var outline = titleObj.AddComponent<Outline>();
+        outline.effectColor = new Color(0.4f, 0.6f, 1f, 0.35f);
+        outline.effectDistance = new Vector2(4f, 4f);
 
         // Subtitle
         var subObj = new GameObject("Subtitle");
         subObj.transform.SetParent(parent, false);
+        subtitleGroup = subObj.AddComponent<CanvasGroup>();
         var subText = subObj.AddComponent<Text>();
         subText.font = bodyFont;
         subText.text = "AN ORBITAL PUZZLE GAME";
-        subText.fontSize = 42;
+        subText.fontSize = 52;
         subText.alignment = TextAnchor.MiddleCenter;
-        subText.color = new Color(0.5f, 0.4f, 0.8f, 0.7f);
+        subText.color = new Color(0.7f, 0.7f, 0.9f, 0.8f);
         subText.raycastTarget = false;
-        var subRect = subObj.GetComponent<RectTransform>();
-        subRect.anchorMin = new Vector2(0.5f, 0.5f);
-        subRect.anchorMax = new Vector2(0.5f, 0.5f);
-        subRect.sizeDelta = new Vector2(800, 40);
-        subRect.anchoredPosition = new Vector2(0f, 110f);
+        subtitleRect = subObj.GetComponent<RectTransform>();
+        subtitleRect.anchorMin = new Vector2(0.5f, 0.5f);
+        subtitleRect.anchorMax = new Vector2(0.5f, 0.5f);
+        subtitleRect.sizeDelta = new Vector2(800, 50);
+        subtitleRect.anchoredPosition = new Vector2(0f, -30f);
 
-        // Play button
-        CreateButton(parent, "PLAY", new Vector2(0f, -30f), new Vector2(300, 70),
-            new Color(0.1f, 0.5f, 0.3f, 0.9f), 56, () => NavigateTo(1));
+        // Play button — circle with triangle icon
+        CreatePlayButton(parent, new Vector2(0f, -180f), 200f, () => NavigateTo(1));
 
-        // Credits button
-        CreateButton(parent, "CREDITS", new Vector2(0f, -130f), new Vector2(260, 80),
-            new Color(0.2f, 0.2f, 0.4f, 0.9f), 42, () => { });
+        // Start fly-in animation
+        titleGroup.alpha = 0f;
+        subtitleGroup.alpha = 0f;
+        titleRect.localScale = new Vector3(6f, 6f, 1f);
+        titleAnimTimer = 0f;
+        titleAnimating = true;
+    }
+
+
+
+    void CreatePlayButton(Transform parent, Vector2 pos, float size, UnityEngine.Events.UnityAction action)
+    {
+        var btnObj = new GameObject("PlayBtn");
+        btnObj.transform.SetParent(parent, false);
+        var btnRect = btnObj.AddComponent<RectTransform>();
+        btnRect.anchorMin = new Vector2(0.5f, 0.5f);
+        btnRect.anchorMax = new Vector2(0.5f, 0.5f);
+        btnRect.sizeDelta = new Vector2(size, size);
+        btnRect.anchoredPosition = pos;
+
+        // Circle background
+        var btnImg = btnObj.AddComponent<Image>();
+        btnImg.sprite = GenerateCircleSprite(new Color(0.15f, 0.25f, 0.5f));
+        btnImg.color = new Color(1f, 1f, 1f, 0.9f);
+
+        var btn = btnObj.AddComponent<Button>();
+        btn.targetGraphic = btnImg;
+        var colors = btn.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
+        colors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+        btn.colors = colors;
+        btn.onClick.AddListener(action);
+
+        // Circle border glow
+        var ringObj = new GameObject("Ring");
+        ringObj.transform.SetParent(btnObj.transform, false);
+        var ringRect = ringObj.AddComponent<RectTransform>();
+        ringRect.anchorMin = Vector2.zero;
+        ringRect.anchorMax = Vector2.one;
+        ringRect.sizeDelta = new Vector2(10, 10);
+        var ringImg = ringObj.AddComponent<Image>();
+        ringImg.sprite = GenerateCircleRing(new Color(0.4f, 0.6f, 1f));
+        ringImg.raycastTarget = false;
+
+        // Play triangle icon
+        var triObj = new GameObject("PlayIcon");
+        triObj.transform.SetParent(btnObj.transform, false);
+        var triRect = triObj.AddComponent<RectTransform>();
+        triRect.anchorMin = new Vector2(0.25f, 0.25f);
+        triRect.anchorMax = new Vector2(0.75f, 0.75f);
+        triRect.sizeDelta = Vector2.zero;
+        var triImg = triObj.AddComponent<Image>();
+        triImg.sprite = GeneratePlayTriangle();
+        triImg.raycastTarget = false;
+        triImg.color = Color.white;
     }
 
     void BuildChapterContent(Transform parent, int chapter)
     {
-        // Header
+        // Chapter title
         var headerObj = new GameObject("Header");
         headerObj.transform.SetParent(parent, false);
         var headerText = headerObj.AddComponent<Text>();
         headerText.font = titleFont;
-        headerText.text = "SELECT LEVEL";
-        headerText.fontSize = 100;
+        headerText.text = $"CHAPTER {ToRoman(chapter)}";
+        headerText.fontSize = 120;
         headerText.fontStyle = FontStyle.Bold;
         headerText.alignment = TextAnchor.MiddleCenter;
-        headerText.color = new Color(0.6f, 0.8f, 1f);
+        headerText.color = Color.white;
         headerText.raycastTarget = false;
+        headerText.horizontalOverflow = HorizontalWrapMode.Overflow;
         var headerRect = headerObj.GetComponent<RectTransform>();
         headerRect.anchorMin = new Vector2(0.5f, 0.5f);
         headerRect.anchorMax = new Vector2(0.5f, 0.5f);
-        headerRect.sizeDelta = new Vector2(600, 60);
-        headerRect.anchoredPosition = new Vector2(0f, 380f);
-
-        // Chapter label
-        var chObj = new GameObject("ChapterLabel");
-        chObj.transform.SetParent(parent, false);
-        var chText = chObj.AddComponent<Text>();
-        chText.font = bodyFont;
-        chText.text = $"CHAPTER {ToRoman(chapter)}";
-        chText.fontSize = 42;
-        chText.alignment = TextAnchor.MiddleCenter;
-        chText.color = new Color(0.5f, 0.4f, 0.8f, 0.7f);
-        chText.raycastTarget = false;
-        var chRect = chObj.GetComponent<RectTransform>();
-        chRect.anchorMin = new Vector2(0.5f, 0.5f);
-        chRect.anchorMax = new Vector2(0.5f, 0.5f);
-        chRect.sizeDelta = new Vector2(600, 35);
-        chRect.anchoredPosition = new Vector2(0f, 320f);
+        headerRect.sizeDelta = new Vector2(800, 80);
+        headerRect.anchoredPosition = new Vector2(0f, 400f);
 
         // Level grid
         int count = LevelRegistry.GetLevelCount(chapter);
         int cols = 5;
-        float spacing = 120f;
+        float spacing = 160f;
         float startX = -(cols - 1) * spacing / 2f;
-        float startY = 180f;
+        int rows = Mathf.CeilToInt((float)count / cols);
+        float gridHeight = (rows - 1) * spacing;
+        float startY = gridHeight / 2f;
 
         for (int i = 0; i < count; i++)
         {
@@ -194,9 +255,72 @@ public class MenuCarousel : MonoBehaviour
                 new Vector2(startX + col * spacing, startY - row * spacing));
         }
 
-        // Back button
-        CreateButton(parent, "BACK", new Vector2(0f, -380f), new Vector2(220, 80),
-            new Color(0.3f, 0.15f, 0.15f, 0.9f), 40, () => NavigateTo(0));
+        // Left arrow — go back (to title or previous chapter)
+        int prevStop = chapter - 1; // chapter 1 → stop 0 (title), chapter 2 → stop 1, etc.
+        CreateArrowButton(parent, new Vector2(-480f, 0f), true, () => NavigateTo(prevStop));
+
+        // Right arrow — go forward (to next chapter if it exists)
+        if (chapter < LevelRegistry.GetChapterCount())
+            CreateArrowButton(parent, new Vector2(480f, 0f), false, () => NavigateTo(chapter + 1));
+    }
+
+    void CreateArrowButton(Transform parent, Vector2 pos, bool pointLeft, UnityEngine.Events.UnityAction action)
+    {
+        var btnObj = new GameObject(pointLeft ? "ArrowLeft" : "ArrowRight");
+        btnObj.transform.SetParent(parent, false);
+        var btnRect = btnObj.AddComponent<RectTransform>();
+        btnRect.anchorMin = new Vector2(0.5f, 0.5f);
+        btnRect.anchorMax = new Vector2(0.5f, 0.5f);
+        btnRect.sizeDelta = new Vector2(70, 70);
+        btnRect.anchoredPosition = pos;
+
+        var btnImg = btnObj.AddComponent<Image>();
+        btnImg.sprite = GenerateArrowSprite(pointLeft);
+        btnImg.color = new Color(1f, 1f, 1f, 0.7f);
+
+        var btn = btnObj.AddComponent<Button>();
+        btn.targetGraphic = btnImg;
+        var colors = btn.colors;
+        colors.normalColor = new Color(1f, 1f, 1f, 0.7f);
+        colors.highlightedColor = Color.white;
+        colors.pressedColor = new Color(0.6f, 0.6f, 0.6f, 0.7f);
+        btn.colors = colors;
+        btn.onClick.AddListener(action);
+    }
+
+    Sprite GenerateArrowSprite(bool pointLeft)
+    {
+        int res = 64;
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        float half = res / 2f;
+
+        // Chevron arrow: > or <
+        Vector2 tip, top, bot;
+        if (pointLeft)
+        {
+            tip = new Vector2(res * 0.25f, half);
+            top = new Vector2(res * 0.75f, res * 0.85f);
+            bot = new Vector2(res * 0.75f, res * 0.15f);
+        }
+        else
+        {
+            tip = new Vector2(res * 0.75f, half);
+            top = new Vector2(res * 0.25f, res * 0.85f);
+            bot = new Vector2(res * 0.25f, res * 0.15f);
+        }
+
+        for (int y = 0; y < res; y++)
+            for (int x = 0; x < res; x++)
+            {
+                Vector2 p = new Vector2(x, y);
+                if (PointInTriangle(p, tip, top, bot))
+                    tex.SetPixel(x, y, Color.white);
+                else
+                    tex.SetPixel(x, y, Color.clear);
+            }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), res);
     }
 
     void CreateLevelButton(Transform parent, int chapter, int level, Vector2 pos)
@@ -205,6 +329,7 @@ public class MenuCarousel : MonoBehaviour
         if (config == null) return;
 
         var pc = config.planet;
+        bool unlocked = LevelRegistry.IsLevelUnlocked(chapter, level);
 
         var btnObj = new GameObject($"Level_{chapter}_{level}");
         btnObj.transform.SetParent(parent, false);
@@ -220,16 +345,28 @@ public class MenuCarousel : MonoBehaviour
 
         var btn = btnObj.AddComponent<Button>();
         btn.targetGraphic = btnImg;
-        var colors = btn.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(1.3f, 1.3f, 1.3f, 1f);
-        colors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
-        btn.colors = colors;
-        btn.onClick.AddListener(() =>
+        btn.interactable = unlocked;
+
+        if (unlocked)
         {
-            Hide();
-            SceneBootstrap.LoadLevel(chapter, level);
-        });
+            var colors = btn.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1.3f, 1.3f, 1.3f, 1f);
+            colors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+            btn.colors = colors;
+            btn.onClick.AddListener(() =>
+            {
+                SceneBootstrap.LoadLevel(chapter, level);
+            });
+        }
+        else
+        {
+            // Greyed out locked appearance
+            var colors = btn.colors;
+            colors.disabledColor = new Color(0.25f, 0.25f, 0.25f, 0.5f);
+            btn.colors = colors;
+            btnImg.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+        }
 
         // Atmosphere ring using the planet's atmosphere color
         var ringObj = new GameObject("Ring");
@@ -239,8 +376,8 @@ public class MenuCarousel : MonoBehaviour
         ringRect.anchorMax = Vector2.one;
         ringRect.sizeDelta = new Vector2(14, 14);
         var ringImg = ringObj.AddComponent<Image>();
-        ringImg.sprite = GenerateCircleRing(pc.atmosphereColor);
-        ringImg.color = new Color(1f, 1f, 1f, 0.5f);
+        ringImg.sprite = GenerateCircleRing(unlocked ? pc.atmosphereColor : new Color(0.3f, 0.3f, 0.3f));
+        ringImg.color = new Color(1f, 1f, 1f, unlocked ? 0.5f : 0.2f);
         ringImg.raycastTarget = false;
 
         // Label
@@ -252,12 +389,18 @@ public class MenuCarousel : MonoBehaviour
         lbl.fontSize = 50;
         lbl.fontStyle = FontStyle.Bold;
         lbl.alignment = TextAnchor.MiddleCenter;
-        lbl.color = Color.white;
+        lbl.color = unlocked ? Color.white : new Color(0.4f, 0.4f, 0.4f, 0.5f);
         lbl.raycastTarget = false;
         var lblRect = lblObj.GetComponent<RectTransform>();
         lblRect.anchorMin = Vector2.zero;
         lblRect.anchorMax = Vector2.one;
         lblRect.sizeDelta = Vector2.zero;
+
+        // Gentle bob animation
+        var bob = btnObj.AddComponent<UIBob>();
+        bob.amplitude = 5f;
+        bob.speed = 1.2f;
+        bob.phaseOffset = level * 0.7f;
     }
 
     // --- NAVIGATION ---
@@ -282,21 +425,48 @@ public class MenuCarousel : MonoBehaviour
 
     void Update()
     {
-        if (!rotating) return;
-
-        rotateTimer += Time.unscaledDeltaTime;
-        float t = Mathf.Clamp01(rotateTimer / rotateDuration);
-        float eased = EaseInOut(t);
-
-        currentAngle = Mathf.Lerp(startAngle, targetAngle, eased);
-
-        if (t >= 1f)
+        // Clock rotation
+        if (rotating)
         {
-            currentAngle = targetAngle;
-            rotating = false;
+            rotateTimer += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(rotateTimer / rotateDuration);
+            float eased = EaseInOut(t);
+
+            currentAngle = Mathf.Lerp(startAngle, targetAngle, eased);
+
+            if (t >= 1f)
+            {
+                currentAngle = targetAngle;
+                rotating = false;
+            }
+
+            clockPivot.transform.rotation = Quaternion.Euler(0f, 0f, currentAngle);
         }
 
-        clockPivot.transform.rotation = Quaternion.Euler(0f, 0f, currentAngle);
+        // Title fly-in animation
+        if (titleAnimating && titleRect != null)
+        {
+            // Cap delta to prevent animation completing in one frame after loading
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            titleAnimTimer += dt;
+            float t = Mathf.Clamp01(titleAnimTimer / titleAnimDuration);
+            // Strong ease-out: fast start, gentle landing
+            float eased = 1f - Mathf.Pow(1f - t, 3f);
+
+            // Scale: 6 → 2, alpha: 0 → 1
+            float scale = Mathf.Lerp(6f, 2f, eased);
+            titleRect.localScale = new Vector3(scale, scale, 1f);
+            // Alpha fades in faster (ease-in-out)
+            float alphaT = Mathf.Clamp01(titleAnimTimer / (titleAnimDuration * 0.6f));
+            titleGroup.alpha = EaseInOut(alphaT);
+
+            // Subtitle fades in after title mostly settled
+            float subT = Mathf.Clamp01((titleAnimTimer - 1.5f) / 0.8f);
+            subtitleGroup.alpha = EaseInOut(subT);
+
+            if (t >= 1f)
+                titleAnimating = false;
+        }
     }
 
     public void Show()
@@ -310,6 +480,16 @@ public class MenuCarousel : MonoBehaviour
         cam.orthographicSize = 10f;
 
         clockPivot.transform.rotation = Quaternion.Euler(0f, 0f, currentAngle);
+
+        // Restart title fly-in if returning to title screen
+        if (currentStop == 0 && titleRect != null)
+        {
+            titleGroup.alpha = 0f;
+            subtitleGroup.alpha = 0f;
+            titleRect.localScale = new Vector3(6f, 6f, 1f);
+            titleAnimTimer = 0f;
+            titleAnimating = true;
+        }
     }
 
     public void Hide()
@@ -320,8 +500,18 @@ public class MenuCarousel : MonoBehaviour
 
     public void ReturnToLevelSelect()
     {
-        Show();
         int stop = LevelRegistry.CurrentChapter;
+
+        // Rebuild the chapter screen to refresh unlock states
+        if (screenObjects[stop] != null)
+        {
+            var oldPos = screenObjects[stop].transform.localPosition;
+            var oldRot = screenObjects[stop].transform.localRotation;
+            Object.Destroy(screenObjects[stop]);
+            BuildScreen(stop, oldPos, oldRot.eulerAngles.z, (parent) => BuildChapterContent(parent, stop));
+        }
+
+        Show();
         // Snap to the chapter's angle immediately, then show
         currentAngle = stop * 90f;
         targetAngle = currentAngle;
@@ -454,6 +644,41 @@ public class MenuCarousel : MonoBehaviour
             }
         tex.Apply();
         return Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), res);
+    }
+
+    Sprite GeneratePlayTriangle()
+    {
+        int res = 64;
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        float half = res / 2f;
+
+        // Triangle pointing right, slightly offset right for visual centering
+        Vector2 a = new Vector2(res * 0.3f, res * 0.15f);  // bottom-left
+        Vector2 b = new Vector2(res * 0.3f, res * 0.85f);  // top-left
+        Vector2 c = new Vector2(res * 0.8f, half);          // right point
+
+        for (int y = 0; y < res; y++)
+            for (int x = 0; x < res; x++)
+            {
+                Vector2 p = new Vector2(x, y);
+                if (PointInTriangle(p, a, b, c))
+                    tex.SetPixel(x, y, Color.white);
+                else
+                    tex.SetPixel(x, y, Color.clear);
+            }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), res);
+    }
+
+    static bool PointInTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
+    {
+        float d1 = (p.x - b.x) * (a.y - b.y) - (a.x - b.x) * (p.y - b.y);
+        float d2 = (p.x - c.x) * (b.y - c.y) - (b.x - c.x) * (p.y - c.y);
+        float d3 = (p.x - a.x) * (c.y - a.y) - (c.x - a.x) * (p.y - a.y);
+        bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+        bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+        return !(hasNeg && hasPos);
     }
 
     static string ToRoman(int n)

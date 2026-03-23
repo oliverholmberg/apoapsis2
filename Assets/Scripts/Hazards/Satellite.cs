@@ -5,6 +5,8 @@ public class Satellite : MonoBehaviour
     public float radius = 0.25f;
     public Color coreColor = new Color(1f, 0.4f, 0f);
     public Color rimColor = new Color(1f, 0.8f, 0.2f);
+    public BodyStyle bodyStyle = BodyStyle.CrateredMoon;
+    public Color atmosphereColor = new Color(1f, 0.6f, 0.2f);
 
     Rigidbody2D rb;
     SpriteRenderer spriteRenderer;
@@ -26,6 +28,10 @@ public class Satellite : MonoBehaviour
 
         spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
         spriteRenderer.sortingOrder = 4;
+    }
+
+    void Start()
+    {
         GenerateVisual();
     }
 
@@ -48,37 +54,26 @@ public class Satellite : MonoBehaviour
         }
     }
 
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        ExplosionFX.Spawn(transform.position, rimColor);
+        Destroy(gameObject);
+    }
+
     void GenerateVisual()
     {
-        int res = 64;
+        int res = 4;
         var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
-        tex.wrapMode = TextureWrapMode.Clamp;
-
-        int half = res / 2;
         for (int y = 0; y < res; y++)
-        {
             for (int x = 0; x < res; x++)
-            {
-                float dx = x - half;
-                float dy = y - half;
-                float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                float t = dist / half;
-
-                if (t > 1f)
-                    tex.SetPixel(x, y, Color.clear);
-                else
-                {
-                    Color c = Color.Lerp(coreColor, rimColor, t * t);
-                    c.a = 1f;
-                    tex.SetPixel(x, y, c);
-                }
-            }
-        }
-
+                tex.SetPixel(x, y, Color.white);
         tex.Apply();
-        float pixelsPerUnit = res / (radius * 2f);
+
+        float worldSize = radius * 2f;
+        float pixelsPerUnit = res / worldSize;
         var sprite = Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), pixelsPerUnit);
         spriteRenderer.sprite = sprite;
+        spriteRenderer.material = BodyPresets.CreateMaterial(bodyStyle, coreColor, rimColor, atmosphereColor);
     }
 }

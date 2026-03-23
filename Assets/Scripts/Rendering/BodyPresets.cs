@@ -6,7 +6,12 @@ public enum BodyStyle
     LavaWorld,
     IceCrystal,
     CrateredMoon,
-    NeonMarble
+    NeonMarble,
+    Mountainous,
+    Storm,
+    Crystalline,
+    Oceanic,
+    Toxic
 }
 
 public static class BodyPresets
@@ -42,6 +47,21 @@ public static class BodyPresets
                 break;
             case BodyStyle.NeonMarble:
                 ApplyNeonMarble(mat);
+                break;
+            case BodyStyle.Mountainous:
+                ApplyMountainous(mat);
+                break;
+            case BodyStyle.Storm:
+                ApplyStorm(mat);
+                break;
+            case BodyStyle.Crystalline:
+                ApplyCrystalline(mat);
+                break;
+            case BodyStyle.Oceanic:
+                ApplyOceanic(mat);
+                break;
+            case BodyStyle.Toxic:
+                ApplyToxic(mat);
                 break;
         }
 
@@ -145,5 +165,107 @@ public static class BodyPresets
         mat.SetFloat("_BandStrength", 0f);
         mat.SetFloat("_VoronoiStrength", 0f);
         mat.SetFloat("_CrackStrength", 0f);
+    }
+
+    static void ApplyMountainous(Material mat)
+    {
+        mat.SetFloat("_NoiseScale", 7f);
+        mat.SetFloat("_NoiseOctaves", 4f);
+        mat.SetFloat("_NoiseLacunarity", 2.5f);
+        mat.SetFloat("_NoisePersistence", 0.45f);
+        mat.SetFloat("_WarpStrength", 0.15f);
+        mat.SetFloat("_WarpScale", 3f);
+        mat.SetFloat("_DriftSpeed", 0f);
+        mat.SetVector("_DriftDirection", new Vector4(0f, 0f, 0f, 0f));
+        mat.SetFloat("_RimPower", 3f);
+        mat.SetFloat("_RimIntensity", 1f);
+        mat.SetFloat("_EmissiveIntensity", 0.1f);
+        mat.SetFloat("_EmissiveThreshold", 0.8f);
+        mat.SetFloat("_BandStrength", 0f);
+        mat.SetFloat("_VoronoiStrength", 0.6f);
+        mat.SetFloat("_VoronoiScale", 12f);
+        mat.SetFloat("_CrackStrength", 0f);
+    }
+
+    static void ApplyStorm(Material mat)
+    {
+        mat.SetFloat("_NoiseScale", 4f);
+        mat.SetFloat("_NoiseOctaves", 5f);
+        mat.SetFloat("_NoiseLacunarity", 2.3f);
+        mat.SetFloat("_NoisePersistence", 0.55f);
+        mat.SetFloat("_WarpStrength", 1.5f);
+        mat.SetFloat("_WarpScale", 2f);
+        mat.SetFloat("_DriftSpeed", 0.05f);
+        mat.SetVector("_DriftDirection", new Vector4(1f, 0.3f, 0f, 0f));
+        mat.SetFloat("_RimPower", 2f);
+        mat.SetFloat("_RimIntensity", 1.6f);
+        mat.SetFloat("_EmissiveIntensity", 1.2f);
+        mat.SetColor("_EmissiveColor", new Color(1f, 0.9f, 0.7f));
+        mat.SetFloat("_EmissiveThreshold", 0.45f);
+        mat.SetFloat("_BandStrength", 0.4f);
+        mat.SetFloat("_VoronoiStrength", 0f);
+        mat.SetFloat("_CrackStrength", 0f);
+    }
+
+    static void ApplyCrystalline(Material mat)
+    {
+        mat.SetFloat("_NoiseScale", 15f);
+        mat.SetFloat("_NoiseOctaves", 3f);
+        mat.SetFloat("_NoiseLacunarity", 3f);
+        mat.SetFloat("_NoisePersistence", 0.4f);
+        mat.SetFloat("_WarpStrength", 0f);
+        mat.SetFloat("_WarpScale", 1f);
+        mat.SetFloat("_DriftSpeed", 0f);
+        mat.SetVector("_DriftDirection", new Vector4(0f, 0f, 0f, 0f));
+        mat.SetFloat("_RimPower", 1.5f);
+        mat.SetFloat("_RimIntensity", 2.2f);
+        mat.SetFloat("_EmissiveIntensity", 0.8f);
+        mat.SetColor("_EmissiveColor", new Color(0.9f, 0.95f, 1f));
+        mat.SetFloat("_EmissiveThreshold", 0.55f);
+        mat.SetFloat("_BandStrength", 0f);
+        mat.SetFloat("_VoronoiStrength", 0.7f);
+        mat.SetFloat("_VoronoiScale", 14f);
+        mat.SetFloat("_CrackStrength", 0f);
+    }
+
+    static void ApplyOceanic(Material mat)
+    {
+        mat.SetFloat("_NoiseScale", 2.5f);
+        mat.SetFloat("_NoiseOctaves", 5f);
+        mat.SetFloat("_NoiseLacunarity", 2f);
+        mat.SetFloat("_NoisePersistence", 0.5f);
+        mat.SetFloat("_WarpStrength", 0.3f);
+        mat.SetFloat("_WarpScale", 2f);
+        mat.SetFloat("_DriftSpeed", 0.02f);
+        mat.SetVector("_DriftDirection", new Vector4(0.8f, 0.2f, 0f, 0f));
+        mat.SetFloat("_RimPower", 2f);
+        mat.SetFloat("_RimIntensity", 1.6f);
+        mat.SetFloat("_EmissiveIntensity", 0.2f);
+        mat.SetFloat("_EmissiveThreshold", 0.7f);
+        mat.SetFloat("_BandStrength", 0.3f);
+        mat.SetFloat("_VoronoiStrength", 0.2f);
+        mat.SetFloat("_VoronoiScale", 4f);
+        mat.SetFloat("_CrackStrength", 0f);
+    }
+
+    static void ApplyToxic(Material mat)
+    {
+        mat.SetFloat("_NoiseScale", 5f);
+        mat.SetFloat("_NoiseOctaves", 4f);
+        mat.SetFloat("_NoiseLacunarity", 2.2f);
+        mat.SetFloat("_NoisePersistence", 0.5f);
+        mat.SetFloat("_WarpStrength", 0.8f);
+        mat.SetFloat("_WarpScale", 3f);
+        mat.SetFloat("_DriftSpeed", 0.04f);
+        mat.SetVector("_DriftDirection", new Vector4(0.5f, 0.6f, 0f, 0f));
+        mat.SetFloat("_RimPower", 2f);
+        mat.SetFloat("_RimIntensity", 1.8f);
+        mat.SetFloat("_EmissiveIntensity", 1f);
+        mat.SetColor("_EmissiveColor", new Color(0.5f, 1f, 0.2f));
+        mat.SetFloat("_EmissiveThreshold", 0.5f);
+        mat.SetFloat("_BandStrength", 0f);
+        mat.SetFloat("_VoronoiStrength", 0.3f);
+        mat.SetFloat("_VoronoiScale", 5f);
+        mat.SetFloat("_CrackStrength", 0.5f);
     }
 }

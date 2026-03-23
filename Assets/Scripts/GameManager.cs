@@ -72,6 +72,7 @@ public class GameManager : MonoBehaviour
             ScoreDisplay.Instance.AddScore(100);
 
         state = GameState.LevelComplete;
+        LevelRegistry.CompleteLevel(LevelRegistry.CurrentChapter, LevelRegistry.CurrentLevel);
         int finalScore = ScoreDisplay.Instance != null ? ScoreDisplay.Instance.score : 0;
         overlay.ShowWin(finalScore);
     }

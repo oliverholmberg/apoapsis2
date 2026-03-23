@@ -12,31 +12,73 @@ public class SceneBootstrap : MonoBehaviour
         instance = go.AddComponent<SceneBootstrap>();
         DontDestroyOnLoad(go);
 
+        // Create persistent transition manager
+        var transObj = new GameObject("TransitionManager");
+        transObj.AddComponent<TransitionManager>();
+
         // Create persistent menu carousel
         var carouselObj = new GameObject("MenuCarousel");
         carousel = carouselObj.AddComponent<MenuCarousel>();
         carousel.Initialize();
     }
 
-    public static void Reset()
+    public static void Reset(bool reverse = false)
     {
-        instance.ClearScene();
-        instance.BuildScene();
+        if (TransitionManager.Instance != null && !TransitionManager.Instance.IsTransitioning)
+        {
+            System.Action action = () =>
+            {
+                instance.ClearScene();
+                instance.BuildScene();
+            };
+            if (reverse)
+                TransitionManager.Instance.TransitionOutReverse(action);
+            else
+                TransitionManager.Instance.TransitionOut(action);
+        }
+        else
+        {
+            instance.ClearScene();
+            instance.BuildScene();
+        }
     }
 
     public static void LoadLevel(int chapter, int level)
     {
         LevelRegistry.CurrentChapter = chapter;
         LevelRegistry.CurrentLevel = level;
-        instance.ClearScene();
-        instance.BuildScene();
+        if (TransitionManager.Instance != null && !TransitionManager.Instance.IsTransitioning)
+        {
+            TransitionManager.Instance.FadeOut(() =>
+            {
+                instance.ClearScene();
+                instance.BuildScene();
+            });
+        }
+        else
+        {
+            instance.ClearScene();
+            instance.BuildScene();
+        }
     }
 
     public static void ShowMenu()
     {
-        instance.ClearScene();
-        if (carousel != null)
-            carousel.ReturnToLevelSelect();
+        if (TransitionManager.Instance != null && !TransitionManager.Instance.IsTransitioning)
+        {
+            TransitionManager.Instance.TransitionOutReverse(() =>
+            {
+                instance.ClearScene();
+                if (carousel != null)
+                    carousel.ReturnToLevelSelect();
+            });
+        }
+        else
+        {
+            instance.ClearScene();
+            if (carousel != null)
+                carousel.ReturnToLevelSelect();
+        }
     }
 
     void ClearScene()
@@ -104,7 +146,12 @@ public class SceneBootstrap : MonoBehaviour
         var cam = Camera.main;
         cam.orthographicSize = config.camera.orthoSize;
         cam.transform.position = new Vector3(config.camera.position.x, config.camera.position.y, -10f);
+        cam.transform.rotation = Quaternion.identity;
         cam.backgroundColor = new Color(0.02f, 0.02f, 0.05f);
+
+        // Zoom-in effect
+        if (TransitionManager.Instance != null)
+            TransitionManager.Instance.StartLevelZoom(config.camera.orthoSize);
 
         // Input Manager
         var inputObj = new GameObject("InputManager");
@@ -170,6 +217,8 @@ public class SceneBootstrap : MonoBehaviour
                     sat.radius = sc.radius;
                     sat.coreColor = sc.coreColor;
                     sat.rimColor = sc.rimColor;
+                    sat.bodyStyle = sc.style;
+                    sat.atmosphereColor = sc.atmosphereColor;
 
                     // Orbital velocity tangent to position
                     float scaledMass = mc.mass * 100000f;

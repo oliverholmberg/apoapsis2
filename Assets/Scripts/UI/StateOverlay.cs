@@ -107,7 +107,7 @@ public class StateOverlay : MonoBehaviour
         nextBtn = MakeButton("NEXT", new Vector2(120f, -75f), boxGO.transform, () =>
         {
             LevelRegistry.AdvanceLevel();
-            SceneBootstrap.Reset();
+            SceneBootstrap.Reset(reverse: true);
         });
         backBtn = MakeButton("BACK", new Vector2(120f, -75f), boxGO.transform, () =>
         {
