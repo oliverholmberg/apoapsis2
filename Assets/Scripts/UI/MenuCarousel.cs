@@ -408,6 +408,59 @@ public class MenuCarousel : MonoBehaviour
         lblRect.anchorMax = Vector2.one;
         lblRect.sizeDelta = Vector2.zero;
 
+        // High score and perfect star below the planet
+        if (LevelRegistry.GetHighScore(chapter, level) > 0 || LevelRegistry.IsPerfect(chapter, level))
+        {
+            int highScore = LevelRegistry.GetHighScore(chapter, level);
+            bool perfect = LevelRegistry.IsPerfect(chapter, level);
+
+            // Score + star in one line below the planet
+            var infoObj = new GameObject("LevelInfo");
+            infoObj.transform.SetParent(btnObj.transform, false);
+            var infoRect = infoObj.AddComponent<RectTransform>();
+            infoRect.anchorMin = new Vector2(0.5f, 0f);
+            infoRect.anchorMax = new Vector2(0.5f, 0f);
+            infoRect.sizeDelta = new Vector2(140, 30);
+            infoRect.anchoredPosition = new Vector2(0f, -20f);
+
+            // Score text first, then star after
+            if (highScore > 0)
+            {
+                var scoreTxtObj = new GameObject("Score");
+                scoreTxtObj.transform.SetParent(infoObj.transform, false);
+                var scoreTxt = scoreTxtObj.AddComponent<Text>();
+                scoreTxt.font = titleFont;
+                scoreTxt.text = highScore.ToString();
+                scoreTxt.fontSize = 25;
+                scoreTxt.alignment = TextAnchor.MiddleCenter;
+                scoreTxt.color = new Color(1f, 0.85f, 0.2f, 0.9f);
+                scoreTxt.raycastTarget = false;
+                scoreTxt.horizontalOverflow = HorizontalWrapMode.Overflow;
+                scoreTxt.verticalOverflow = VerticalWrapMode.Overflow;
+                var scoreRect = scoreTxtObj.GetComponent<RectTransform>();
+                scoreRect.anchorMin = new Vector2(0.5f, 0.5f);
+                scoreRect.anchorMax = new Vector2(0.5f, 0.5f);
+                scoreRect.sizeDelta = new Vector2(80, 30);
+                scoreRect.anchoredPosition = perfect ? new Vector2(-12f, 0f) : Vector2.zero;
+            }
+
+            // Star icon after the score
+            if (perfect)
+            {
+                var starObj = new GameObject("PerfectStar");
+                starObj.transform.SetParent(infoObj.transform, false);
+                var starImg = starObj.AddComponent<Image>();
+                starImg.sprite = GenerateStarSprite();
+                starImg.color = new Color(1f, 0.85f, 0.2f);
+                starImg.raycastTarget = false;
+                var starRect = starObj.GetComponent<RectTransform>();
+                starRect.anchorMin = new Vector2(0.5f, 0.5f);
+                starRect.anchorMax = new Vector2(0.5f, 0.5f);
+                starRect.sizeDelta = new Vector2(16, 16);
+                starRect.anchoredPosition = highScore > 0 ? new Vector2(32f, 0f) : Vector2.zero;
+            }
+        }
+
         // Gentle bob animation
         var bob = btnObj.AddComponent<UIBob>();
         bob.amplitude = 5f;
@@ -420,9 +473,14 @@ public class MenuCarousel : MonoBehaviour
     public void NavigateTo(int stop)
     {
         if (rotating || stop == currentStop) return;
-        float from = currentStop * 90f;
         float to = stop * 90f;
-        targetAngle = currentAngle + Mathf.DeltaAngle(currentAngle, to);
+        float delta = Mathf.DeltaAngle(currentAngle, to);
+
+        // From title (stop 0) to any chapter: always go clockwise (positive)
+        if (currentStop == 0 && stop > 0 && delta < 0f)
+            delta += 360f;
+
+        targetAngle = currentAngle + delta;
         startAngle = currentAngle;
         rotateTimer = 0f;
         currentStop = stop;
@@ -691,6 +749,33 @@ public class MenuCarousel : MonoBehaviour
         bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
         bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
         return !(hasNeg && hasPos);
+    }
+
+    Sprite _starSprite;
+    Sprite GenerateStarSprite()
+    {
+        if (_starSprite != null) return _starSprite;
+        int res = 32;
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        float half = res / 2f;
+
+        // 5-pointed star
+        for (int y = 0; y < res; y++)
+            for (int x = 0; x < res; x++)
+            {
+                float px = (x - half) / half;
+                float py = (y - half) / half;
+                float angle = Mathf.Atan2(py, px);
+                float dist = Mathf.Sqrt(px * px + py * py);
+                // Star shape: alternating radius
+                float starAngle = angle + Mathf.PI / 2f;
+                float r = 0.45f + 0.45f * Mathf.Cos(5f * starAngle);
+                tex.SetPixel(x, y, dist < r ? Color.white : Color.clear);
+            }
+        tex.Apply();
+        _starSprite = Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), res);
+        return _starSprite;
     }
 
     static string ToRoman(int n)

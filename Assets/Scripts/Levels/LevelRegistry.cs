@@ -646,4 +646,37 @@ public static class LevelRegistry
         PlayerPrefs.SetInt(CompletionKey(chapter, level), 1);
         PlayerPrefs.Save();
     }
+
+    // --- High scores ---
+    static string HighScoreKey(int chapter, int level) => $"high_score_{chapter}_{level}";
+    static string PerfectKey(int chapter, int level) => $"perfect_{chapter}_{level}";
+
+    public static int GetHighScore(int chapter, int level)
+    {
+        return PlayerPrefs.GetInt(HighScoreKey(chapter, level), 0);
+    }
+
+    /// Returns true if this is a new high score
+    public static bool SetHighScore(int chapter, int level, int score)
+    {
+        int prev = GetHighScore(chapter, level);
+        if (score > prev)
+        {
+            PlayerPrefs.SetInt(HighScoreKey(chapter, level), score);
+            PlayerPrefs.Save();
+            return true;
+        }
+        return false;
+    }
+
+    public static bool IsPerfect(int chapter, int level)
+    {
+        return PlayerPrefs.GetInt(PerfectKey(chapter, level), 0) == 1;
+    }
+
+    public static void SetPerfect(int chapter, int level)
+    {
+        PlayerPrefs.SetInt(PerfectKey(chapter, level), 1);
+        PlayerPrefs.Save();
+    }
 }

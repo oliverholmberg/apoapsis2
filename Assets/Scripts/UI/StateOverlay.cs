@@ -19,6 +19,9 @@ public class StateOverlay : MonoBehaviour
 
     string titleText = "";
     string subtitleText = "";
+    bool winNewHighScore;
+    bool winPerfect;
+    int winScore;
     string statsText = "";
     Color titleColor;
     Color statsColor;
@@ -210,19 +213,18 @@ public class StateOverlay : MonoBehaviour
         statsStyle.normal.textColor = statsColor;
     }
 
-    public void UpdateScore(int score)
-    {
-        if (showing && titleText == "LEVEL COMPLETE")
-            statsText = $"SCORE: {score}";
-    }
 
-    public void ShowWin(int score)
+    public void ShowWin(int score, bool newHighScore = false, bool perfect = false)
     {
         titleText = "LEVEL COMPLETE";
         titleColor = new Color(0.2f, 1f, 0.6f);
         glowImage.color = new Color(0.2f, 1f, 0.6f, 0.12f);
+
+        winScore = score;
+        winNewHighScore = newHighScore;
+        winPerfect = perfect;
         subtitleText = "";
-        statsText = $"SCORE: {score}";
+        RefreshWinStats();
         statsColor = new Color(1f, 0.85f, 0.2f);
 
         HideAllButtons();
@@ -236,6 +238,32 @@ public class StateOverlay : MonoBehaviour
             backBtn.SetActive(true);
 
         FadeIn();
+    }
+
+    void RefreshWinStats()
+    {
+        string line = $"SCORE: {winScore}";
+        if (winNewHighScore) line += "  NEW BEST!";
+        if (winPerfect) line += "  PERFECT!";
+        statsText = line;
+    }
+
+    public void SetPerfect(bool val)
+    {
+        winPerfect = val;
+        RefreshWinStats();
+    }
+
+    public void SetNewHighScore(bool val)
+    {
+        winNewHighScore = val;
+        RefreshWinStats();
+    }
+
+    public void UpdateScore(int score)
+    {
+        winScore = score;
+        RefreshWinStats();
     }
 
     public void ShowCrash()
@@ -310,7 +338,11 @@ public class StateOverlay : MonoBehaviour
             GUI.Label(new Rect(cx - boxW / 2, cy - 20, boxW, 50), statsText, statsStyle);
 
         if (!string.IsNullOrEmpty(subtitleText))
+        {
+            // Gold color for achievements
+            subtitleStyle.normal.textColor = new Color(1f, 0.85f, 0.2f, 0.9f);
             GUI.Label(new Rect(cx - boxW / 2, cy + 40, boxW, 40), subtitleText, subtitleStyle);
+        }
 
         GUI.color = prevColor;
     }

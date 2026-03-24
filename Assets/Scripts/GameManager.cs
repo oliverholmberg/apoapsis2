@@ -13,6 +13,8 @@ public class GameManager : MonoBehaviour
     OrbitDetector orbitDetector;
     StateOverlay overlay;
     Vector3 planetCenter;
+    int levelTotalCoins;
+    bool perfectAchieved;
 
     public void Initialize(RocketController rocketRef, Vector3 planetPos)
     {
@@ -47,6 +49,27 @@ public class GameManager : MonoBehaviour
                 overlay.ShowLostInSpace();
             }
         }
+
+        // After level complete, keep checking for perfect and updating high score
+        if (state == GameState.LevelComplete && !perfectAchieved && levelTotalCoins > 0)
+        {
+            if (Coin.Collected >= levelTotalCoins)
+            {
+                perfectAchieved = true;
+                LevelRegistry.SetPerfect(LevelRegistry.CurrentChapter, LevelRegistry.CurrentLevel);
+                overlay.SetPerfect(true);
+            }
+
+            // Update high score as coins are collected
+            if (ScoreDisplay.Instance != null)
+            {
+                int currentScore = ScoreDisplay.Instance.score;
+                bool newHigh = LevelRegistry.SetHighScore(LevelRegistry.CurrentChapter, LevelRegistry.CurrentLevel, currentScore);
+                if (newHigh)
+                    overlay.SetNewHighScore(true);
+                overlay.UpdateScore(currentScore);
+            }
+        }
     }
 
     void OnOrbitComplete(Moon moon)
@@ -74,7 +97,16 @@ public class GameManager : MonoBehaviour
         state = GameState.LevelComplete;
         LevelRegistry.CompleteLevel(LevelRegistry.CurrentChapter, LevelRegistry.CurrentLevel);
         int finalScore = ScoreDisplay.Instance != null ? ScoreDisplay.Instance.score : 0;
-        overlay.ShowWin(finalScore);
+
+        // Perfect is checked live — coins can still be collected after win
+        levelTotalCoins = totalCoins;
+        perfectAchieved = Coin.Collected >= totalCoins && totalCoins > 0;
+        if (perfectAchieved)
+            LevelRegistry.SetPerfect(LevelRegistry.CurrentChapter, LevelRegistry.CurrentLevel);
+
+        bool newHighScore = LevelRegistry.SetHighScore(LevelRegistry.CurrentChapter, LevelRegistry.CurrentLevel, finalScore);
+
+        overlay.ShowWin(finalScore, newHighScore, perfectAchieved);
     }
 
     public void OnCrashed()
