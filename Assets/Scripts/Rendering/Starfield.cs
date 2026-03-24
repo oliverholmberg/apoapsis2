@@ -9,9 +9,30 @@ public class Starfield : MonoBehaviour
     public float sparkleChance = 0.15f;
     public float rotationSpeed = 2f;
 
+    // Shooting stars
+    float shootingStarTimer;
+    float nextShootingStar = 1f; // first one comes quickly
+
     void Update()
     {
-        transform.Rotate(0f, 0f, rotationSpeed * Time.deltaTime);
+        float dt = Time.unscaledDeltaTime;
+        transform.Rotate(0f, 0f, rotationSpeed * dt);
+
+        shootingStarTimer += dt;
+        if (shootingStarTimer >= nextShootingStar)
+        {
+            shootingStarTimer = 0f;
+            nextShootingStar = Random.Range(3f, 8f);
+            SpawnShootingStar();
+        }
+    }
+
+    void SpawnShootingStar()
+    {
+        var obj = new GameObject("ShootingStar");
+        obj.transform.SetParent(transform, false);
+        var ss = obj.AddComponent<ShootingStar>();
+        ss.fieldSize = fieldSize;
     }
 
     void Start()

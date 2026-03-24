@@ -157,8 +157,20 @@ public class MenuCarousel : MonoBehaviour
         subtitleRect.sizeDelta = new Vector2(800, 50);
         subtitleRect.anchoredPosition = new Vector2(0f, -30f);
 
-        // Play button — circle with triangle icon
-        CreatePlayButton(parent, new Vector2(0f, -180f), 200f, () => NavigateTo(1));
+        // Play button — goes to highest unlocked chapter
+        CreatePlayButton(parent, new Vector2(0f, -180f), 200f, () =>
+        {
+            int target = 1;
+            for (int ch = LevelRegistry.GetChapterCount(); ch >= 1; ch--)
+            {
+                if (LevelRegistry.IsLevelUnlocked(ch, 1))
+                {
+                    target = ch;
+                    break;
+                }
+            }
+            NavigateTo(target);
+        });
 
         // Start fly-in animation
         titleGroup.alpha = 0f;
