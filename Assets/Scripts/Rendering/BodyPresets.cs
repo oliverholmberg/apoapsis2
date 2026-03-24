@@ -20,7 +20,11 @@ public static class BodyPresets
     static Shader GetShader()
     {
         if (_shader == null)
-            _shader = Shader.Find("Custom/ProceduralBody");
+        {
+            _shader = Resources.Load<Shader>("Shaders/ProceduralBody");
+            if (_shader == null)
+                _shader = Shader.Find("Custom/ProceduralBody"); // fallback for Editor
+        }
         return _shader;
     }
 

@@ -37,14 +37,24 @@ public class MenuCarousel : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    float menuOrthoSize = 10f;
+
+    static float GetPhoneZoom()
+    {
+        float aspect = (float)Screen.width / Screen.height;
+        if (aspect > 1f) aspect = 1f / aspect;
+        return aspect < 0.65f ? 0.82f : 1f;
+    }
+
     public void Initialize()
     {
         titleFont = Resources.Load<Font>("Fonts/Orbitron-Bold");
         bodyFont = Resources.Load<Font>("Fonts/Orbitron-Regular");
 
         // Camera fixed, looking at top of clock
+        menuOrthoSize = 10f * GetPhoneZoom();
         var cam = Camera.main;
-        cam.orthographicSize = 10f;
+        cam.orthographicSize = menuOrthoSize;
         cam.transform.position = new Vector3(0f, clockRadius, -10f);
         cam.transform.rotation = Quaternion.identity;
         cam.backgroundColor = new Color(0.02f, 0.02f, 0.05f);
@@ -547,7 +557,7 @@ public class MenuCarousel : MonoBehaviour
         var cam = Camera.main;
         cam.transform.position = new Vector3(0f, clockRadius, -10f);
         cam.transform.rotation = Quaternion.identity;
-        cam.orthographicSize = 10f;
+        cam.orthographicSize = menuOrthoSize;
 
         clockPivot.transform.rotation = Quaternion.Euler(0f, 0f, currentAngle);
 
@@ -647,34 +657,28 @@ public class MenuCarousel : MonoBehaviour
     Sprite RenderPlanetSprite(BodyStyle style, Color coreColor, Color rimColor, Color atmoColor)
     {
         int res = 128;
-        var mat = BodyPresets.CreateMaterial(style, coreColor, rimColor, atmoColor);
 
-        // Render the shader to a RenderTexture
-        var rt = RenderTexture.GetTemporary(res, res, 0, RenderTextureFormat.ARGB32);
-        rt.filterMode = FilterMode.Bilinear;
-
-        // For off-screen rendering, disable blending so alpha writes correctly
-        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
-        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
-
-        // Clear to transparent before rendering
-        var prev = RenderTexture.active;
-        RenderTexture.active = rt;
-        GL.Clear(true, true, Color.clear);
-        RenderTexture.active = prev;
-
-        Graphics.Blit(null, rt, mat);
-
-        // Read back to Texture2D
-        RenderTexture.active = rt;
+        // Fallback: generate a simple gradient circle (works on all platforms)
         var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
-        tex.ReadPixels(new Rect(0, 0, res, res), 0, 0);
+        int half = res / 2;
+        for (int y = 0; y < res; y++)
+            for (int x = 0; x < res; x++)
+            {
+                float d = Mathf.Sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half;
+                if (d > 1f)
+                    tex.SetPixel(x, y, Color.clear);
+                else
+                {
+                    Color c = Color.Lerp(coreColor, rimColor, d * d);
+                    // Rim glow
+                    float rim = Mathf.Pow(d, 2.5f);
+                    c = Color.Lerp(c, atmoColor, rim * 0.6f);
+                    c.a = 1f - Mathf.Clamp01((d - 0.95f) / 0.05f);
+                    tex.SetPixel(x, y, c);
+                }
+            }
         tex.Apply();
-
-        RenderTexture.active = prev;
-        RenderTexture.ReleaseTemporary(rt);
-        Object.Destroy(mat);
 
         return Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), res);
     }

@@ -36,7 +36,7 @@ public class PauseMenu : MonoBehaviour
         iconRect.anchorMin = new Vector2(0f, 1f);
         iconRect.anchorMax = new Vector2(0f, 1f);
         iconRect.pivot = new Vector2(0f, 1f);
-        iconRect.anchoredPosition = new Vector2(20f, -15f);
+        iconRect.anchoredPosition = new Vector2(55f, -50f);
         iconRect.sizeDelta = new Vector2(55, 55);
         var iconImg = iconObj.AddComponent<Image>();
         iconImg.sprite = GeneratePauseIcon();

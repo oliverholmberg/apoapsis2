@@ -53,10 +53,13 @@ public class ScoreDisplay : MonoBehaviour
     {
         if (scoreStyle == null)
         {
+            // Scale font sizes for high-DPI screens (capped to avoid oversized text)
+            float uiScale = Mathf.Clamp(Screen.dpi / 160f, 1f, 1.8f);
+
             scoreStyle = new GUIStyle
             {
                 font = font,
-                fontSize = 32,
+                fontSize = (int)(32 * uiScale),
                 alignment = TextAnchor.UpperCenter,
                 fontStyle = FontStyle.Bold
             };
@@ -65,7 +68,7 @@ public class ScoreDisplay : MonoBehaviour
             popStyle = new GUIStyle
             {
                 font = font,
-                fontSize = 22,
+                fontSize = (int)(22 * uiScale),
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold
             };
@@ -73,19 +76,24 @@ public class ScoreDisplay : MonoBehaviour
             levelStyle = new GUIStyle
             {
                 font = font,
-                fontSize = 24,
+                fontSize = (int)(24 * uiScale),
                 alignment = TextAnchor.UpperRight,
                 fontStyle = FontStyle.Bold
             };
             levelStyle.normal.textColor = new Color(1f, 1f, 1f, 0.5f);
         }
 
+        // Safe area inset for notch/rounded corners
+        Rect safe = Screen.safeArea;
+        float topInset = safe.y;
+        float rightInset = Screen.width - safe.xMax;
+
         // Level indicator at top right
         string levelText = $"{LevelRegistry.CurrentChapter}-{LevelRegistry.CurrentLevel}";
-        GUI.Label(new Rect(Screen.width - 130, 15, 115, 40), levelText, levelStyle);
+        GUI.Label(new Rect(Screen.width - 130 - rightInset, topInset + 10, 115, 40), levelText, levelStyle);
 
         // Score at top center
-        GUI.Label(new Rect(Screen.width / 2f - 150, 15, 300, 50), score.ToString(), scoreStyle);
+        GUI.Label(new Rect(Screen.width / 2f - 150, topInset + 10, 300, 50), score.ToString(), scoreStyle);
 
         // Floating pop-up
         if (popTimer > 0f)

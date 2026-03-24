@@ -144,14 +144,20 @@ public class SceneBootstrap : MonoBehaviour
     {
         // Camera setup
         var cam = Camera.main;
-        cam.orthographicSize = config.camera.orthoSize;
+        // Zoom in on narrow (phone) aspect ratios — portrait mode
+        float aspect = (float)Screen.width / Screen.height;
+        if (aspect > 1f) aspect = 1f / aspect; // handle landscape
+        float zoomFactor = aspect < 0.65f ? 0.82f : 1f; // narrow phones get ~1.2x zoom
+        float ortho = config.camera.orthoSize * zoomFactor;
+
+        cam.orthographicSize = ortho;
         cam.transform.position = new Vector3(config.camera.position.x, config.camera.position.y, -10f);
         cam.transform.rotation = Quaternion.identity;
         cam.backgroundColor = new Color(0.02f, 0.02f, 0.05f);
 
         // Zoom-in effect
         if (TransitionManager.Instance != null)
-            TransitionManager.Instance.StartLevelZoom(config.camera.orthoSize);
+            TransitionManager.Instance.StartLevelZoom(ortho);
 
         // Input Manager
         var inputObj = new GameObject("InputManager");
