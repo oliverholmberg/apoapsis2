@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class MenuCarousel : MonoBehaviour
@@ -30,6 +31,11 @@ public class MenuCarousel : MonoBehaviour
     float titleAnimTimer;
     float titleAnimDuration = 2.5f;
     bool titleAnimating;
+
+    // Swipe navigation
+    bool swipeTracking;
+    Vector2 swipeStartPos;
+    float swipeMinDistance = 80f; // minimum pixels to count as swipe
 
     void Awake()
     {
@@ -523,6 +529,9 @@ public class MenuCarousel : MonoBehaviour
             clockPivot.transform.rotation = Quaternion.Euler(0f, 0f, currentAngle);
         }
 
+        // Swipe navigation
+        HandleSwipe();
+
         // Title fly-in animation
         if (titleAnimating && titleRect != null)
         {
@@ -546,6 +555,61 @@ public class MenuCarousel : MonoBehaviour
 
             if (t >= 1f)
                 titleAnimating = false;
+        }
+    }
+
+    void HandleSwipe()
+    {
+        bool pressed = false;
+        bool justPressed = false;
+        bool justReleased = false;
+        Vector2 pos = Vector2.zero;
+
+        if (Touchscreen.current != null)
+        {
+            var touch = Touchscreen.current.primaryTouch;
+            pressed = touch.press.isPressed;
+            justPressed = touch.press.wasPressedThisFrame;
+            justReleased = touch.press.wasReleasedThisFrame;
+            pos = touch.position.ReadValue();
+        }
+        else if (Mouse.current != null)
+        {
+            pressed = Mouse.current.leftButton.isPressed;
+            justPressed = Mouse.current.leftButton.wasPressedThisFrame;
+            justReleased = Mouse.current.leftButton.wasReleasedThisFrame;
+            pos = Mouse.current.position.ReadValue();
+        }
+
+        if (justPressed)
+        {
+            swipeTracking = true;
+            swipeStartPos = pos;
+        }
+        else if (justReleased && swipeTracking)
+        {
+            swipeTracking = false;
+            Vector2 delta = pos - swipeStartPos;
+
+            // Must be primarily horizontal and exceed minimum distance
+            if (Mathf.Abs(delta.x) > swipeMinDistance && Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
+            {
+                int maxStop = LevelRegistry.GetChapterCount();
+                if (delta.x < 0) // swipe left → next
+                {
+                    if (currentStop < maxStop)
+                        NavigateTo(currentStop + 1);
+                }
+                else // swipe right → previous
+                {
+                    if (currentStop > 0)
+                        NavigateTo(currentStop - 1);
+                }
+            }
+        }
+        else if (!pressed)
+        {
+            swipeTracking = false;
         }
     }
 
