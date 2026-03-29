@@ -1,0 +1,56 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build and upload to App Store Connect (TestFlight)"
+  lane :deploy do
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: ENV["ASC_KEY_CONTENT"],
+      is_key_content_base64: true,
+    )
+
+    xcode_project = "../Builds/iOS/Unity-iPhone.xcodeproj"
+
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: xcode_project,
+      team_id: ENV["APPLE_TEAM_ID"],
+      bundle_identifier: "com.oliverholmberg.apoapsis2",
+      profile_name: ENV["PROVISIONING_PROFILE_NAME"],
+      code_sign_identity: "Apple Distribution",
+    )
+
+    build_app(
+      project: xcode_project,
+      scheme: "Unity-iPhone",
+      configuration: "Release",
+      export_method: "app-store-connect",
+      destination: "generic/platform=iOS",
+      output_directory: "../Builds/iOS/Archive",
+      output_name: "apoapsis2.ipa",
+      clean: true,
+      xcargs: "-allowProvisioningUpdates",
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+    )
+  end
+
+  desc "Download or create provisioning profiles via match"
+  lane :match_appstore do
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: ENV["ASC_KEY_CONTENT"],
+      is_key_content_base64: true,
+    )
+
+    match(
+      type: "appstore",
+      app_identifier: "com.oliverholmberg.apoapsis2",
+      readonly: true,
+    )
+  end
+end
