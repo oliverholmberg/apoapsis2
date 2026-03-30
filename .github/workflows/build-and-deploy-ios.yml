@@ -49,18 +49,17 @@ jobs:
             sudo installer -pkg /tmp/Unity.pkg -target /
             sudo installer -pkg /tmp/iOS.pkg -target /
 
-            # Create expected directory structure
-            UNITY_PATH="$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' 2>/dev/null | head -1)"
-            UNITY_APP="$(dirname "$(dirname "$UNITY_PATH")")"
-            echo "Found Unity at: $UNITY_APP"
-
-            if [ ! -d "/Applications/Unity/Hub/Editor/6000.3.11f1" ]; then
-              sudo mkdir -p /Applications/Unity/Hub/Editor/6000.3.11f1
-              sudo ln -sf "$UNITY_APP" /Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app
-            fi
           fi
 
-          echo "UNITY_PATH=/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity" >> $GITHUB_ENV
+          # Find the actual Unity binary wherever it was installed
+          UNITY_BIN="$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' 2>/dev/null | head -1)"
+          if [ -z "$UNITY_BIN" ]; then
+            echo "::error::Unity binary not found"
+            ls -R /Applications/Unity*/ 2>/dev/null | head -30
+            exit 1
+          fi
+          echo "Found Unity at: $UNITY_BIN"
+          echo "UNITY_BIN=$UNITY_BIN" >> $GITHUB_ENV
 
       # ── Activate Unity License ────────────────────────────────
       - name: Activate Unity License
@@ -68,12 +67,10 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         run: |
-          # Find the actual Unity binary
-          UNITY="${UNITY_PATH:-$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' 2>/dev/null | head -1)}"
-          echo "Using Unity at: $UNITY"
+          echo "Using Unity at: $UNITY_BIN"
 
           # Activate license - the entitlement activation succeeds even if exit code is non-zero
-          "$UNITY" \
+          "$UNITY_BIN" \
             -quit \
             -batchmode \
             -nographics \
@@ -94,9 +91,7 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          UNITY="${UNITY_PATH:-$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' 2>/dev/null | head -1)}"
-
-          "$UNITY" \
+          "$UNITY_BIN" \
             -quit \
             -batchmode \
             -nographics \
