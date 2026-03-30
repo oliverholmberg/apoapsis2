@@ -29,27 +29,38 @@ jobs:
             Library-iOS-
             Library-
 
-      # ── Install Unity ─────────────────────────────────────────
-      - name: Install Unity Editor
+      # ── Install Unity via brew (cached by GitHub runner) ──────
+      - name: Install Unity
         run: |
-          # Download Unity 6000.3.11f1 installer directly
-          CHANGESET="3000ef702840"
-          PKG_URL="https://download.unity3d.com/download_unity/${CHANGESET}/MacEditorInstaller/Unity.pkg"
-          IOS_URL="https://download.unity3d.com/download_unity/${CHANGESET}/MacEditorTargetInstaller/UnitySetup-iOS-Support-for-Editor-6000.3.11f1.pkg"
+          brew install --cask unity-hub
+          sleep 3
 
-          echo "Downloading Unity Editor..."
-          curl -L -o /tmp/Unity.pkg "$PKG_URL"
-          echo "Downloading iOS Build Support..."
-          curl -L -o /tmp/UnitySetup-iOS.pkg "$IOS_URL"
+          # Unity Hub headless install - try multiple version formats
+          /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless install-path --set /Applications/Unity/Hub/Editor 2>&1 || true
+          /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless install --version 6000.3.11f1 --module ios --childModules 2>&1 || \
+          /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless install -v 6000.3.11f1 -m ios 2>&1 || true
 
-          echo "Installing Unity Editor..."
-          sudo installer -pkg /tmp/Unity.pkg -target /
-          echo "Installing iOS Build Support..."
-          sudo installer -pkg /tmp/UnitySetup-iOS.pkg -target /
+          # If Hub install failed, download directly
+          if ! ls /Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app 2>/dev/null; then
+            echo "Hub install failed, downloading directly..."
+            CHANGESET="3000ef702840"
+            curl -L -o /tmp/Unity.pkg "https://download.unity3d.com/download_unity/${CHANGESET}/MacEditorInstaller/Unity.pkg"
+            curl -L -o /tmp/iOS.pkg "https://download.unity3d.com/download_unity/${CHANGESET}/MacEditorTargetInstaller/UnitySetup-iOS-Support-for-Editor-6000.3.11f1.pkg"
+            sudo installer -pkg /tmp/Unity.pkg -target /
+            sudo installer -pkg /tmp/iOS.pkg -target /
 
-          # Verify
-          ls /Applications/Unity/Unity.app/Contents/MacOS/Unity && echo "Unity installed" || \
-          (ls /Applications/Unity/ 2>/dev/null; echo "::error::Unity not found"; exit 1)
+            # Create expected directory structure
+            UNITY_PATH="$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' 2>/dev/null | head -1)"
+            UNITY_APP="$(dirname "$(dirname "$UNITY_PATH")")"
+            echo "Found Unity at: $UNITY_APP"
+
+            if [ ! -d "/Applications/Unity/Hub/Editor/6000.3.11f1" ]; then
+              sudo mkdir -p /Applications/Unity/Hub/Editor/6000.3.11f1
+              sudo ln -sf "$UNITY_APP" /Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app
+            fi
+          fi
+
+          echo "UNITY_PATH=/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity" >> $GITHUB_ENV
 
       # ── Activate Unity License ────────────────────────────────
       - name: Activate Unity License
@@ -57,26 +68,24 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         run: |
-          # Find Unity binary
-          UNITY="$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' | head -1)"
+          # Find the actual Unity binary
+          UNITY="${UNITY_PATH:-$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' 2>/dev/null | head -1)}"
           echo "Using Unity at: $UNITY"
 
-          # Login and activate via batch mode
+          # Activate license - the entitlement activation succeeds even if exit code is non-zero
           "$UNITY" \
             -quit \
             -batchmode \
             -nographics \
-            -logFile - \
+            -logFile /dev/stdout \
             -username "$UNITY_EMAIL" \
-            -password "$UNITY_PASSWORD" \
-            -projectPath "$(pwd)" \
-            2>&1 || true
+            -password "$UNITY_PASSWORD" 2>&1 || true
 
-          # Verify license exists
+          # Check if license was created
           if ls ~/Library/Unity/licenses/Unity*.xml 1>/dev/null 2>&1; then
-            echo "Unity license activated successfully"
+            echo "✅ Unity license activated"
           else
-            echo "::error::Unity license activation failed"
+            echo "::error::Unity license activation failed - no license file found"
             exit 1
           fi
 
@@ -85,7 +94,7 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          UNITY="$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' | head -1)"
+          UNITY="${UNITY_PATH:-$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' 2>/dev/null | head -1)}"
 
           "$UNITY" \
             -quit \
@@ -93,7 +102,7 @@ jobs:
             -nographics \
             -projectPath "$(pwd)" \
             -executeMethod BuildScript.BuildiOSDevice \
-            -logFile -
+            -logFile /dev/stdout
 
       # ── Ruby & Fastlane ──────────────────────────────────────
       - name: Set up Ruby
