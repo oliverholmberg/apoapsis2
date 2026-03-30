@@ -10,10 +10,11 @@ SIMULATOR_UDID="${SIMULATOR_UDID:-$IPHONE_UDID}"
 BUNDLE_ID="${BUNDLE_ID:-com.oliverholmberg.apoapsis2}"
 
 usage() {
-    echo "Usage: $0 [simulator|device] [--skip-unity] [--clean] [--ipad]"
+    echo "Usage: $0 [simulator|device|testflight] [--skip-unity] [--clean] [--ipad]"
     echo ""
     echo "  simulator    Build and deploy to iOS Simulator (default)"
     echo "  device       Build and deploy to connected iOS device"
+    echo "  testflight   Build, sign, and upload to TestFlight"
     echo "  --skip-unity Skip Unity build, just recompile Xcode and deploy"
     echo "  --clean      Clean build directory before building"
     echo "  --ipad       Use iPad simulator instead of iPhone"
@@ -22,6 +23,8 @@ usage() {
     echo "  APPLE_TEAM_ID    Apple Developer Team ID (required for device builds)"
     echo "  SIMULATOR_UDID   Override default simulator UDID"
     echo "  BUNDLE_ID        Override default bundle identifier"
+    echo ""
+    echo "For testflight, source .env first:  source .env && $0 testflight"
     exit 1
 }
 
@@ -40,9 +43,20 @@ for arg in "$@"; do
     esac
 done
 
-if [ "$TARGET" != "simulator" ] && [ "$TARGET" != "device" ]; then
+if [ "$TARGET" != "simulator" ] && [ "$TARGET" != "device" ] && [ "$TARGET" != "testflight" ]; then
     echo "Unknown target: $TARGET"
     usage
+fi
+
+if [ "$TARGET" = "testflight" ]; then
+    # Testflight needs .env vars
+    for var in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_CONTENT MATCH_GIT_URL MATCH_PASSWORD; do
+        if [ -z "${!var:-}" ]; then
+            echo "Error: $var not set. Run: source .env && $0 testflight"
+            exit 1
+        fi
+    done
+    APPLE_TEAM_ID="${APPLE_TEAM_ID:-3Z5QQM89QY}"
 fi
 
 if [ "$TARGET" = "device" ] && [ -z "${APPLE_TEAM_ID:-}" ]; then
@@ -65,7 +79,7 @@ if [ "$SKIP_UNITY" = false ]; then
     echo ""
 
     METHOD="BuildScript.BuildiOSSimulator"
-    [ "$TARGET" = "device" ] && METHOD="BuildScript.BuildiOSDevice"
+    [ "$TARGET" = "device" ] || [ "$TARGET" = "testflight" ] && METHOD="BuildScript.BuildiOSDevice"
 
     "$UNITY" \
         -quit \
@@ -77,6 +91,32 @@ if [ "$SKIP_UNITY" = false ]; then
 
     echo ""
     echo "Unity build complete."
+
+    # Inject 1024x1024 App Store icon (Unity doesn't include it)
+    ICON_SRC="$PROJECT/Assets/Icons/AppIcon-1024.png"
+    ICON_DST="$BUILD_DIR/Unity-iPhone/Images.xcassets/AppIcon.appiconset"
+    if [ -f "$ICON_SRC" ] && [ -d "$ICON_DST" ]; then
+        cp "$ICON_SRC" "$ICON_DST/Icon-AppStore-1024.png"
+
+        # Update Contents.json to reference it
+        python3 -c "
+import json, os
+path = os.path.join('$ICON_DST', 'Contents.json')
+with open(path) as f:
+    data = json.load(f)
+# Remove existing 1024 entry if any
+data['images'] = [i for i in data['images'] if i.get('size') != '1024x1024']
+data['images'].append({
+    'filename': 'Icon-AppStore-1024.png',
+    'idiom': 'ios-marketing',
+    'scale': '1x',
+    'size': '1024x1024'
+})
+with open(path, 'w') as f:
+    json.dump(data, f, indent=2)
+"
+        echo "Injected 1024x1024 App Store icon."
+    fi
 fi
 
 # ─── Stage 2: Xcode Build ───────────────────────────────────────────────────
@@ -115,6 +155,10 @@ elif [ "$TARGET" = "device" ]; then
         -quiet
 
     APP_PATH="./DerivedData/Build/Products/Debug-iphoneos/apoapsis2.app"
+
+elif [ "$TARGET" = "testflight" ]; then
+    echo "Fastlane will handle Xcode build, signing, and upload."
+    APP_PATH="handled-by-fastlane"
 fi
 
 echo "Xcode build complete: $APP_PATH"
@@ -124,7 +168,18 @@ echo ""
 echo "═══ Stage 3: Deploy ═══"
 echo ""
 
-if [ "$TARGET" = "simulator" ]; then
+if [ "$TARGET" = "testflight" ]; then
+    echo ""
+    echo "═══ Stage 3: Fastlane Deploy to TestFlight ═══"
+    echo ""
+
+    cd "$PROJECT"
+    bundle exec fastlane ios deploy
+
+    echo ""
+    echo "═══ Uploaded to TestFlight ═══"
+
+elif [ "$TARGET" = "simulator" ]; then
     # Boot simulator (no-op if already booted)
     xcrun simctl boot "$SIMULATOR_UDID" 2>/dev/null || true
     open -a Simulator

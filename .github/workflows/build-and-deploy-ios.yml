@@ -29,76 +29,47 @@ jobs:
             Library-iOS-
             Library-
 
-      # ── Install Unity via brew (cached by GitHub runner) ──────
-      - name: Install Unity
-        run: |
-          brew install --cask unity-hub
-          sleep 3
-
-          # Unity Hub headless install - try multiple version formats
-          /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless install-path --set /Applications/Unity/Hub/Editor 2>&1 || true
-          /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless install --version 6000.3.11f1 --module ios --childModules 2>&1 || \
-          /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless install -v 6000.3.11f1 -m ios 2>&1 || true
-
-          # If Hub install failed, download directly
-          if ! ls /Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app 2>/dev/null; then
-            echo "Hub install failed, downloading directly..."
-            CHANGESET="3000ef702840"
-            curl -L -o /tmp/Unity.pkg "https://download.unity3d.com/download_unity/${CHANGESET}/MacEditorInstaller/Unity.pkg"
-            curl -L -o /tmp/iOS.pkg "https://download.unity3d.com/download_unity/${CHANGESET}/MacEditorTargetInstaller/UnitySetup-iOS-Support-for-Editor-6000.3.11f1.pkg"
-            sudo installer -pkg /tmp/Unity.pkg -target /
-            sudo installer -pkg /tmp/iOS.pkg -target /
-
-          fi
-
-          # Find the actual Unity binary wherever it was installed
-          UNITY_BIN="$(find /Applications/Unity* -name Unity -type f -path '*/MacOS/Unity' 2>/dev/null | head -1)"
-          if [ -z "$UNITY_BIN" ]; then
-            echo "::error::Unity binary not found"
-            ls -R /Applications/Unity*/ 2>/dev/null | head -30
-            exit 1
-          fi
-          echo "Found Unity at: $UNITY_BIN"
-          echo "UNITY_BIN=$UNITY_BIN" >> $GITHUB_ENV
-
-      # ── Activate Unity License ────────────────────────────────
-      - name: Activate Unity License
-        env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        run: |
-          echo "Using Unity at: $UNITY_BIN"
-
-          # Activate license - the entitlement activation succeeds even if exit code is non-zero
-          "$UNITY_BIN" \
-            -quit \
-            -batchmode \
-            -nographics \
-            -logFile /tmp/unity-activate.log \
-            -username "$UNITY_EMAIL" \
-            -password "$UNITY_PASSWORD" 2>&1 || true
-          cat /tmp/unity-activate.log 2>/dev/null || true
-
-          # Check if license was created
-          if ls ~/Library/Unity/licenses/Unity*.xml 1>/dev/null 2>&1; then
-            echo "✅ Unity license activated"
-          else
-            echo "::error::Unity license activation failed - no license file found"
-            exit 1
-          fi
-
       # ── Unity Build ───────────────────────────────────────────
       - name: Build Unity project for iOS
+        uses: game-ci/unity-builder@v4
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: iOS
+          buildMethod: BuildScript.BuildiOSDevice
+          buildsPath: Builds
+          unityVersion: 6000.3.11f1
+          allowDirtyBuild: true
+
+      # ── Inject App Store Icon ────────────────────────────────
+      - name: Inject 1024x1024 App Store icon
         run: |
-          "$UNITY_BIN" \
-            -quit \
-            -batchmode \
-            -nographics \
-            -projectPath "$(pwd)" \
-            -executeMethod BuildScript.BuildiOSDevice \
-            -logFile -
+          ICON_SRC="Assets/Icons/AppIcon-1024.png"
+          ICON_DST="Builds/iOS/Unity-iPhone/Images.xcassets/AppIcon.appiconset"
+
+          if [ -f "$ICON_SRC" ] && [ -d "$ICON_DST" ]; then
+            cp "$ICON_SRC" "$ICON_DST/Icon-AppStore-1024.png"
+            python3 -c "
+          import json, os
+          path = os.path.join('$ICON_DST', 'Contents.json')
+          with open(path) as f:
+              data = json.load(f)
+          data['images'] = [i for i in data['images'] if i.get('size') != '1024x1024']
+          data['images'].append({
+              'filename': 'Icon-AppStore-1024.png',
+              'idiom': 'ios-marketing',
+              'scale': '1x',
+              'size': '1024x1024'
+          })
+          with open(path, 'w') as f:
+              json.dump(data, f, indent=2)
+          "
+            echo "Injected 1024x1024 App Store icon."
+          else
+            echo "::warning::App Store icon source or destination not found"
+          fi
 
       # ── Ruby & Fastlane ──────────────────────────────────────
       - name: Set up Ruby

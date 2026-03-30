@@ -1,8 +1,12 @@
 using UnityEditor;
 using UnityEditor.Build.Reporting;
+using UnityEditor.Callbacks;
+using UnityEditor.iOS.Xcode;
 using UnityEngine;
 using System;
+using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 
 public class BuildScript
 {
@@ -55,6 +59,9 @@ public class BuildScript
             return;
         }
 
+        // Set app icons from Assets/Icons/
+        SetiOSIcons();
+
         Debug.Log($"Building iOS ({targetSDK}) with {scenes.Length} scene(s)...");
         Debug.Log($"Bundle ID: {bundleId}");
         Debug.Log($"Output: {IOS_OUTPUT_PATH}");
@@ -94,5 +101,58 @@ public class BuildScript
     {
         string value = Environment.GetEnvironmentVariable(key);
         return string.IsNullOrEmpty(value) ? defaultValue : value;
+    }
+
+    private static void SetiOSIcons()
+    {
+        var platform = NamedBuildTarget.iOS;
+        var iconKinds = PlayerSettings.GetSupportedIconKindsForPlatform(platform);
+
+        foreach (var kind in iconKinds)
+        {
+            var iconSizes = PlayerSettings.GetIconSizesForPlatform(platform, kind);
+            var icons = new Texture2D[iconSizes.Length];
+
+            for (int i = 0; i < iconSizes.Length; i++)
+            {
+                int size = iconSizes[i];
+                string path = $"Assets/Icons/icon_{size}.png";
+                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                if (tex != null)
+                {
+                    icons[i] = tex;
+                }
+                else
+                {
+                    Debug.LogWarning($"Icon not found: {path} (size {size})");
+                }
+            }
+
+            PlayerSettings.SetIconsForPlatform(platform, icons, kind);
+        }
+
+        // Set default icon (used as fallback)
+        var defaultIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Icons/icon_1024.png");
+        if (defaultIcon != null)
+        {
+            PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new Texture2D[] { defaultIcon }, IconKind.Any);
+        }
+
+        Debug.Log("iOS icons configured from Assets/Icons/");
+    }
+
+    [PostProcessBuild]
+    public static void OnPostProcessBuild(BuildTarget target, string pathToBuiltProject)
+    {
+        if (target != BuildTarget.iOS) return;
+
+        string plistPath = Path.Combine(pathToBuiltProject, "Info.plist");
+        PlistDocument plist = new PlistDocument();
+        plist.ReadFromFile(plistPath);
+
+        // Skip encryption compliance prompt on TestFlight
+        plist.root.SetBoolean("ITSAppUsesNonExemptEncryption", false);
+
+        plist.WriteToFile(plistPath);
     }
 }
