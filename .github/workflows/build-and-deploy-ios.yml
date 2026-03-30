@@ -74,9 +74,10 @@ jobs:
             -quit \
             -batchmode \
             -nographics \
-            -logFile /dev/stdout \
+            -logFile /tmp/unity-activate.log \
             -username "$UNITY_EMAIL" \
             -password "$UNITY_PASSWORD" 2>&1 || true
+          cat /tmp/unity-activate.log 2>/dev/null || true
 
           # Check if license was created
           if ls ~/Library/Unity/licenses/Unity*.xml 1>/dev/null 2>&1; then
@@ -97,7 +98,7 @@ jobs:
             -nographics \
             -projectPath "$(pwd)" \
             -executeMethod BuildScript.BuildiOSDevice \
-            -logFile /dev/stdout
+            -logFile -
 
       # ── Ruby & Fastlane ──────────────────────────────────────
       - name: Set up Ruby
