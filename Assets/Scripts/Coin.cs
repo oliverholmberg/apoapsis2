@@ -83,6 +83,7 @@ public class Coin : MonoBehaviour
             collected++;
             if (ScoreDisplay.Instance != null)
                 ScoreDisplay.Instance.AddScore(10, transform.position);
+            HapticManager.Instance?.CoinCollect();
             Destroy(gameObject);
             return;
         }

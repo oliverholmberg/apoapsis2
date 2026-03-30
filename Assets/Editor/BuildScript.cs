@@ -27,8 +27,8 @@ public class BuildScript
         PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.iOS, bundleId);
 
         PlayerSettings.iOS.sdkVersion = targetSDK;
-        // Simulator uses iOS 17 (x86_64 Rosetta), device targets iOS 26
-        PlayerSettings.iOS.targetOSVersionString = targetSDK == iOSSdkVersion.SimulatorSDK ? "17.0" : "26.0";
+        // iOS 17 minimum for both simulator and device
+        PlayerSettings.iOS.targetOSVersionString = "17.0";
 
         // Code signing
         string teamId = Environment.GetEnvironmentVariable("APPLE_TEAM_ID");

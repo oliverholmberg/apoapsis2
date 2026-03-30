@@ -116,6 +116,9 @@ public class SceneBootstrap : MonoBehaviour
         var input = GameObject.Find("InputManager");
         if (input != null) Destroy(input);
 
+        var haptic = GameObject.Find("HapticManager");
+        if (haptic != null) Destroy(haptic);
+
         var pause = GameObject.Find("PauseMenu");
         if (pause != null) { Time.timeScale = 1f; Destroy(pause); }
 
@@ -162,6 +165,10 @@ public class SceneBootstrap : MonoBehaviour
         // Input Manager
         var inputObj = new GameObject("InputManager");
         inputObj.AddComponent<InputManager>();
+
+        // Haptics
+        var hapticObj = new GameObject("HapticManager");
+        hapticObj.AddComponent<HapticManager>();
 
         // Starfield
         var stars = new GameObject("Starfield");

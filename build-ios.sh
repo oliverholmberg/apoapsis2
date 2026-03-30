@@ -109,6 +109,9 @@ elif [ "$TARGET" = "device" ]; then
         -arch arm64 \
         -derivedDataPath ./DerivedData \
         -allowProvisioningUpdates \
+        DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+        CODE_SIGN_STYLE=Automatic \
+        CODE_SIGN_IDENTITY="Apple Development" \
         -quiet
 
     APP_PATH="./DerivedData/Build/Products/Debug-iphoneos/apoapsis2.app"
@@ -137,7 +140,7 @@ elif [ "$TARGET" = "device" ]; then
     DEVICE_UDID="${DEVICE_UDID:-}"
     if [ -z "$DEVICE_UDID" ]; then
         echo "Searching for connected device..."
-        DEVICE_UDID=$(xcrun devicectl list devices 2>/dev/null | grep -E "iPhone|iPad" | head -1 | awk '{print $NF}' || true)
+        DEVICE_UDID=$(xcrun devicectl list devices 2>/dev/null | grep "connected" | head -1 | awk '{for(i=1;i<=NF;i++) if($i ~ /^[0-9A-F]{8}-[0-9A-F]{4}-/) print $i}' || true)
     fi
 
     if [ -z "$DEVICE_UDID" ]; then

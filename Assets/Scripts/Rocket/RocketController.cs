@@ -230,6 +230,11 @@ public class RocketController : MonoBehaviour
         {
             Vector2 thrustDir = rb.linearVelocity.magnitude > 0.01f ? rb.linearVelocity.normalized : (Vector2)transform.up;
             rb.AddForce(thrustDir * thrustForce, ForceMode2D.Force);
+            if (HapticManager.Instance != null) HapticManager.Instance.ThrustTick();
+        }
+        else
+        {
+            if (HapticManager.Instance != null) HapticManager.Instance.ThrustStop();
         }
 
         // Brake — retrograde drag, can't fully stop
@@ -253,6 +258,7 @@ public class RocketController : MonoBehaviour
     void OnCollisionEnter2D(Collision2D collision)
     {
         dead = true;
+        HapticManager.Instance?.Crash();
         ExplosionFX.Spawn(transform.position, new Color(1f, 0.4f, 0.1f));
 
         rb.linearVelocity = Vector2.zero;
@@ -287,6 +293,7 @@ public class RocketController : MonoBehaviour
 
         if (ScoreDisplay.Instance != null)
             ScoreDisplay.Instance.AddScore(25, other.transform.position);
+        HapticManager.Instance?.NearMiss();
     }
 
     void CheckMoonNearMiss()
@@ -309,6 +316,7 @@ public class RocketController : MonoBehaviour
                 nearMissed.Add(id);
                 if (ScoreDisplay.Instance != null)
                     ScoreDisplay.Instance.AddScore(25, m.transform.position);
+                HapticManager.Instance?.NearMiss();
             }
         }
     }

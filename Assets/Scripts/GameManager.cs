@@ -78,6 +78,7 @@ public class GameManager : MonoBehaviour
 
         Debug.Log($"ORBIT COMPLETE: {moon.gameObject.name}");
         moon.MarkCompleted();
+        HapticManager.Instance?.OrbitAchieved();
 
         if (ScoreDisplay.Instance != null)
             ScoreDisplay.Instance.AddScore(50, moon.transform.position);
@@ -95,6 +96,7 @@ public class GameManager : MonoBehaviour
             ScoreDisplay.Instance.AddScore(100);
 
         state = GameState.LevelComplete;
+        HapticManager.Instance?.LevelComplete();
         LevelRegistry.CompleteLevel(LevelRegistry.CurrentChapter, LevelRegistry.CurrentLevel);
         int finalScore = ScoreDisplay.Instance != null ? ScoreDisplay.Instance.score : 0;
 
