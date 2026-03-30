@@ -1,0 +1,6 @@
+app_identifier("com.oliverholmberg.apoapsis2")
+
+# App Store Connect API Key is configured via environment variables:
+#   ASC_KEY_ID      - Key ID from App Store Connect
+#   ASC_ISSUER_ID   - Issuer ID from App Store Connect
+#   ASC_KEY_CONTENT - Contents of the .p8 private key file
