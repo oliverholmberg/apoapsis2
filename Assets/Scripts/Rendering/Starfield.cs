@@ -10,8 +10,8 @@ public class Starfield : MonoBehaviour
     public float rotationSpeed = 2f;
 
     // Background effects
-    public int nebulaCount = 3;
-    public int auroraCount = 2;
+    public int nebulaCount = 2;
+    public int auroraCount = 1;
 
     // Shooting stars
     float shootingStarTimer;
@@ -113,7 +113,7 @@ public class Starfield : MonoBehaviour
                 0.1f
             );
 
-            float size = Random.Range(8f, 18f);
+            float size = Random.Range(6f, 12f);
             obj.transform.localScale = new Vector3(size, size, 1f);
             obj.transform.localRotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
 
@@ -133,12 +133,12 @@ public class Starfield : MonoBehaviour
             mat.SetColor("_ColorA", palette[0]);
             mat.SetColor("_ColorB", palette[1]);
             mat.SetColor("_ColorC", palette[2]);
-            mat.SetFloat("_Alpha", Random.Range(0.08f, 0.18f));
+            mat.SetFloat("_Alpha", Random.Range(0.04f, 0.08f));
             mat.SetFloat("_SpiralStrength", Random.Range(1.5f, 3.5f));
             mat.SetFloat("_WarpStrength", Random.Range(0.8f, 1.8f));
             mat.SetFloat("_NoiseScale", Random.Range(2.5f, 4.5f));
-            mat.SetFloat("_DriftSpeed", Random.Range(0.005f, 0.015f));
-            mat.SetFloat("_CoreBrightness", Random.Range(1.0f, 2.0f));
+            mat.SetFloat("_DriftSpeed", Random.Range(0.003f, 0.008f));
+            mat.SetFloat("_CoreBrightness", Random.Range(0.8f, 1.2f));
             sr.material = mat;
         }
     }
@@ -165,8 +165,8 @@ public class Starfield : MonoBehaviour
             );
 
             // Auroras are wide and tall
-            float width = Random.Range(15f, 25f);
-            float height = Random.Range(8f, 14f);
+            float width = Random.Range(10f, 18f);
+            float height = Random.Range(6f, 10f);
             obj.transform.localScale = new Vector3(width, height, 1f);
             obj.transform.localRotation = Quaternion.Euler(0f, 0f, Random.Range(-20f, 20f));
 
@@ -185,12 +185,12 @@ public class Starfield : MonoBehaviour
             mat.SetColor("_ColorA", palette[0]);
             mat.SetColor("_ColorB", palette[1]);
             mat.SetColor("_ColorC", palette[2]);
-            mat.SetFloat("_Alpha", Random.Range(0.08f, 0.15f));
-            mat.SetFloat("_FlowSpeed", Random.Range(0.15f, 0.4f));
+            mat.SetFloat("_Alpha", Random.Range(0.04f, 0.08f));
+            mat.SetFloat("_FlowSpeed", Random.Range(0.08f, 0.2f));
             mat.SetFloat("_WaveFreq", Random.Range(2.5f, 4.5f));
-            mat.SetFloat("_WaveAmp", Random.Range(0.1f, 0.2f));
+            mat.SetFloat("_WaveAmp", Random.Range(0.08f, 0.15f));
             mat.SetFloat("_Thickness", Random.Range(0.06f, 0.12f));
-            mat.SetFloat("_Layers", Random.Range(2f, 4f));
+            mat.SetFloat("_Layers", Random.Range(2f, 3f));
             sr.material = mat;
         }
     }

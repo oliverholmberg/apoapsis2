@@ -106,8 +106,9 @@ Shader "Custom/Nebula"
                 float2 centered = i.uv - 0.5;
                 float dist = length(centered) * 2.0;
 
-                // Radial falloff
-                float falloff = 1.0 - saturate(pow(dist, _FalloffPower));
+                // Radial falloff — smooth to zero well before quad edge
+                float falloff = smoothstep(1.0, 0.4, dist);
+                falloff *= falloff;
                 if (falloff < 0.001) return float4(0, 0, 0, 0);
 
                 // Polar coordinates for spiral

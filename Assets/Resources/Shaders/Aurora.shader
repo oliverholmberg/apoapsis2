@@ -120,8 +120,12 @@ Shader "Custom/Aurora"
                 float2 uv = i.uv;
                 float t = _Time.y * _FlowSpeed;
 
+                // Smooth fade on all edges to avoid hard quad boundary
+                float edgeFade = smoothstep(0.0, 0.25, uv.x) * smoothstep(1.0, 0.75, uv.x)
+                               * smoothstep(0.0, 0.25, uv.y) * smoothstep(1.0, 0.75, uv.y);
+
                 // Vertical fade — stronger in upper portion
-                float verticalFade = smoothstep(0.0, 0.3, uv.y) * smoothstep(1.0, 0.6, uv.y);
+                float verticalFade = smoothstep(0.0, 0.3, uv.y) * smoothstep(1.0, 0.6, uv.y) * edgeFade;
 
                 float totalDensity = 0.0;
                 float3 totalColor = float3(0, 0, 0);
