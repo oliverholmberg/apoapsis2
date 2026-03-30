@@ -35,11 +35,28 @@ jobs:
           # Install Unity Hub
           brew install --cask unity-hub
 
-          # Install Unity Editor with iOS support
+          # Wait for Hub to be ready
+          sleep 5
+
+          # Install Unity Editor with iOS support using Hub CLI
+          # Unity Hub needs the changeset hash for exact versions
           /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless install \
             --version 6000.3.11f1 \
+            --changeset 3000ef702840 \
             --module ios \
-            --childModules
+            --childModules 2>&1 || true
+
+          # Verify installation
+          if [ -d "/Applications/Unity/Hub/Editor/6000.3.11f1" ]; then
+            echo "Unity Editor installed successfully"
+          else
+            echo "Trying alternative install path..."
+            # List what's available
+            /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless editors --installed 2>&1 || true
+            ls /Applications/Unity/Hub/Editor/ 2>/dev/null || true
+            echo "::error::Unity Editor installation failed"
+            exit 1
+          fi
 
       # ── Activate Unity License ────────────────────────────────
       - name: Activate Unity License
