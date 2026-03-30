@@ -29,18 +29,59 @@ jobs:
             Library-iOS-
             Library-
 
-      # ── Unity Build ───────────────────────────────────────────
-      - name: Build Unity project for iOS
-        uses: game-ci/unity-builder@v4
+      # ── Install Unity ─────────────────────────────────────────
+      - name: Install Unity Hub and Editor
+        run: |
+          # Install Unity Hub
+          brew install --cask unity-hub
+
+          # Install Unity Editor with iOS support
+          /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub -- --headless install \
+            --version 6000.3.11f1 \
+            --module ios \
+            --childModules
+
+      # ── Activate Unity License ────────────────────────────────
+      - name: Activate Unity License
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          targetPlatform: iOS
-          buildMethod: BuildScript.BuildiOSDevice
-          buildsPath: Builds
-          unityVersion: 6000.3.11f1
+        run: |
+          UNITY="/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity"
+
+          # Login and activate via batch mode
+          "$UNITY" \
+            -quit \
+            -batchmode \
+            -nographics \
+            -logFile - \
+            -username "$UNITY_EMAIL" \
+            -password "$UNITY_PASSWORD" \
+            -projectPath "$(pwd)" \
+            2>&1 || true
+
+          # Verify license exists
+          if ls ~/Library/Unity/licenses/Unity*.xml 1>/dev/null 2>&1; then
+            echo "Unity license activated successfully"
+          else
+            echo "::error::Unity license activation failed"
+            exit 1
+          fi
+
+      # ── Unity Build ───────────────────────────────────────────
+      - name: Build Unity project for iOS
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          UNITY="/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity"
+
+          "$UNITY" \
+            -quit \
+            -batchmode \
+            -nographics \
+            -projectPath "$(pwd)" \
+            -executeMethod BuildScript.BuildiOSDevice \
+            -logFile -
 
       # ── Ruby & Fastlane ──────────────────────────────────────
       - name: Set up Ruby
@@ -48,17 +89,6 @@ jobs:
         with:
           ruby-version: "3.3"
           bundler-cache: true
-
-      # ── Fix Xcode project for manual signing ─────────────────
-      - name: Set Xcode signing settings
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          # Ensure the generated Xcode project uses manual signing
-          # so Fastlane can control code signing
-          sed -i '' \
-            "s/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g" \
-            Builds/iOS/Unity-iPhone.xcodeproj/project.pbxproj || true
 
       # ── Deploy via Fastlane ──────────────────────────────────
       - name: Deploy to App Store Connect
