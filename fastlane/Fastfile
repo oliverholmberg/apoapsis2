@@ -17,8 +17,10 @@ platform :ios do
       readonly: is_ci,
     )
 
-    xcode_project = "../Builds/iOS/Unity-iPhone.xcodeproj"
+    xcode_project = "Builds/iOS/Unity-iPhone.xcodeproj"
+    xcode_project_abs = File.expand_path("../#{xcode_project}", __dir__)
 
+    # Configure signing for app target only
     update_code_signing_settings(
       use_automatic_signing: false,
       path: xcode_project,
@@ -26,20 +28,78 @@ platform :ios do
       bundle_identifier: "com.oliverholmberg.apoapsis2",
       profile_name: ENV["sigh_com.oliverholmberg.apoapsis2_appstore_profile-name"],
       code_sign_identity: "Apple Distribution",
+      targets: ["Unity-iPhone"],
     )
 
+    # Fix non-app targets: unique bundle IDs and no provisioning
+    require "xcodeproj"
+    proj = Xcodeproj::Project.open(xcode_project_abs)
+    proj.targets.each do |target|
+      next if target.name == "Unity-iPhone"
+      target.build_configurations.each do |config|
+        # Give framework/library a distinct bundle ID so export doesn't try to provision it
+        if target.name == "UnityFramework"
+          config.build_settings["PRODUCT_BUNDLE_IDENTIFIER"] = "com.oliverholmberg.apoapsis2.framework"
+        elsif target.name == "GameAssembly"
+          config.build_settings["PRODUCT_BUNDLE_IDENTIFIER"] = "com.oliverholmberg.apoapsis2.gameassembly"
+        end
+        config.build_settings.delete("PROVISIONING_PROFILE_SPECIFIER")
+        config.build_settings.delete("PROVISIONING_PROFILE")
+        config.build_settings.delete("PROVISIONING_PROFILE_APP")
+        config.build_settings["CODE_SIGN_IDENTITY"] = ""
+      end
+    end
+    proj.save
+
+    # Step 1: Archive only (skip export)
     build_app(
       project: xcode_project,
       scheme: "Unity-iPhone",
       configuration: "Release",
-      export_method: "app-store-connect",
       destination: "generic/platform=iOS",
-      output_directory: "../Builds/iOS/Archive",
-      output_name: "apoapsis2.ipa",
       clean: true,
+      skip_package_ipa: true,
     )
 
+    # Step 2: Strip embedded.mobileprovision from UnityFramework inside the archive
+    archive_path = lane_context[SharedValues::XCODEBUILD_ARCHIVE]
+    framework_provision = File.join(archive_path, "Products", "Applications", "apoapsis2.app", "Frameworks", "UnityFramework.framework", "embedded.mobileprovision")
+    if File.exist?(framework_provision)
+      UI.message("Stripping embedded.mobileprovision from UnityFramework.framework")
+      FileUtils.rm(framework_provision)
+    end
+
+    # Step 3: Export the cleaned archive
+    output_dir = File.expand_path("../Builds/iOS/Archive", __dir__)
+
+    # Write export options plist
+    export_plist_path = File.join(output_dir, "ExportOptions.plist")
+    FileUtils.mkdir_p(output_dir)
+    File.write(export_plist_path, <<~PLIST)
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+        <key>method</key>
+        <string>app-store-connect</string>
+        <key>signingStyle</key>
+        <string>manual</string>
+        <key>teamID</key>
+        <string>3Z5QQM89QY</string>
+        <key>provisioningProfiles</key>
+        <dict>
+          <key>com.oliverholmberg.apoapsis2</key>
+          <string>match AppStore com.oliverholmberg.apoapsis2</string>
+        </dict>
+      </dict>
+      </plist>
+    PLIST
+
+    sh "xcodebuild -exportArchive -archivePath '#{archive_path}' -exportOptionsPlist '#{export_plist_path}' -exportPath '#{output_dir}'"
+
+    # Step 4: Upload to TestFlight
     upload_to_testflight(
+      ipa: File.join(output_dir, "apoapsis2.ipa"),
       skip_waiting_for_build_processing: true,
     )
   end

@@ -105,3 +105,6 @@ fastlane/screenshots/
 fastlane/test_output/
 fastlane/README.md
 vendor/bundle
+
+.env
+*.p8

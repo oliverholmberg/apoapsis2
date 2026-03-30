@@ -31,9 +31,9 @@ base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
 The CI runner needs an activated Unity license to build. Use `game-ci/unity-activate` or activate manually:
 
 1. On your local machine (with Unity installed), find your license file:
-   - macOS: `~/Library/Application Support/Unity/Unity_lic.ulf`
-   - Windows: `C:\ProgramData\Unity\Unity_lic.ulf`
-2. Copy the entire contents of this `.ulf` file — that's your `UNITY_LICENSE` secret
+   - Unity 6+: `~/Library/Unity/licenses/UnityEntitlementLicense.xml` (macOS)
+   - Unity 2022 and earlier: `~/Library/Application Support/Unity/Unity_lic.ulf` (macOS) or `C:\ProgramData\Unity\Unity_lic.ulf` (Windows)
+2. Copy the entire contents of this license file — that's your `UNITY_LICENSE` secret
 
 Alternatively, follow the [game-ci activation docs](https://game.ci/docs/github/activation) for a dedicated CI license.
 
