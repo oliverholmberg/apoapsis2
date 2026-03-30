@@ -18,6 +18,7 @@ Development task list for Apoapsis 2. Check off items as they are completed so C
 - [x] **Restart** — restart current level from pause menu and failure screens
 - [x] **Game intro / title screen** — neon arcade aesthetic, transitions to level selection
 - [x] **Level selection screen** — chapters with ~15 levels each, planet-colored spheres, high score, star rating, locked/greyed out states
+- [x] **Swipe on menu** — swipe left/right to navigate between title and chapter screens in the menu carousel
 - [ ] **Credits screen**
 
 ---
