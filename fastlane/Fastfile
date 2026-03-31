@@ -57,7 +57,7 @@ platform :ios do
       scheme: "Unity-iPhone",
       configuration: "Release",
       destination: "generic/platform=iOS",
-      clean: true,
+      clean: false,
       skip_package_ipa: true,
     )
 
