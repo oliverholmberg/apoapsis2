@@ -71,13 +71,19 @@ platform :ios do
     end
     proj.save
 
-    # Step 1: Archive only (skip export)
+    # Set build number using Fastlane's built-in action
+    increment_build_number(
+      build_number: new_build.to_s,
+      xcodeproj: xcode_project,
+    )
+
+    # Step 1: Archive only (skip export — but must clean to pick up build number change)
     build_app(
       project: xcode_project,
       scheme: "Unity-iPhone",
       configuration: "Release",
       destination: "generic/platform=iOS",
-      clean: false,
+      clean: true,
       skip_package_ipa: true,
     )
 
