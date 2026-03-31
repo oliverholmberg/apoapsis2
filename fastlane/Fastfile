@@ -3,6 +3,9 @@ default_platform(:ios)
 platform :ios do
   desc "Build and upload to App Store Connect (TestFlight)"
   lane :deploy do
+    # Set up CI keychain so codesign doesn't hang waiting for UI
+    setup_ci if is_ci
+
     api_key = app_store_connect_api_key(
       key_id: ENV["ASC_KEY_ID"],
       issuer_id: ENV["ASC_ISSUER_ID"],
@@ -15,6 +18,8 @@ platform :ios do
       app_identifier: "com.oliverholmberg.apoapsis2",
       git_url: ENV["MATCH_GIT_URL"],
       readonly: is_ci,
+      keychain_name: is_ci ? "fastlane_tmp_keychain" : nil,
+      keychain_password: is_ci ? "" : nil,
     )
 
     xcode_project = "Builds/iOS/Unity-iPhone.xcodeproj"
