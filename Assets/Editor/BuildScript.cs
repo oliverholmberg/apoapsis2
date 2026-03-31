@@ -7,6 +7,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
+#pragma warning disable CS0618 // Suppress obsolete warnings for BuildTargetGroup API
 
 public class BuildScript
 {
@@ -105,40 +106,35 @@ public class BuildScript
 
     private static void SetiOSIcons()
     {
-        var platform = NamedBuildTarget.iOS;
-        var iconKinds = PlayerSettings.GetSupportedIconKindsForPlatform(platform);
+        // Get the icon sizes Unity expects for iOS
+        var iconSizes = PlayerSettings.GetIconSizes(BuildTargetGroup.iOS);
+        var icons = new Texture2D[iconSizes.Length];
 
-        foreach (var kind in iconKinds)
+        for (int i = 0; i < iconSizes.Length; i++)
         {
-            var iconSizes = PlayerSettings.GetIconSizesForPlatform(platform, kind);
-            var icons = new Texture2D[iconSizes.Length];
-
-            for (int i = 0; i < iconSizes.Length; i++)
+            int size = iconSizes[i];
+            string path = $"Assets/Icons/icon_{size}.png";
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (tex != null)
             {
-                int size = iconSizes[i];
-                string path = $"Assets/Icons/icon_{size}.png";
-                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-                if (tex != null)
-                {
-                    icons[i] = tex;
-                }
-                else
-                {
-                    Debug.LogWarning($"Icon not found: {path} (size {size})");
-                }
+                icons[i] = tex;
             }
-
-            PlayerSettings.SetIconsForPlatform(platform, icons, kind);
+            else
+            {
+                Debug.LogWarning($"Icon not found: {path} (size {size})");
+            }
         }
 
-        // Set default icon (used as fallback)
+        PlayerSettings.SetIcons(BuildTargetGroup.iOS, icons);
+
+        // Set default icon (used as fallback and App Store 1024x1024)
         var defaultIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Icons/icon_1024.png");
         if (defaultIcon != null)
         {
-            PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new Texture2D[] { defaultIcon }, IconKind.Any);
+            PlayerSettings.SetIcons(BuildTargetGroup.Unknown, new Texture2D[] { defaultIcon });
         }
 
-        Debug.Log("iOS icons configured from Assets/Icons/");
+        Debug.Log($"iOS icons configured from Assets/Icons/ ({icons.Count(i => i != null)}/{iconSizes.Length} found)");
     }
 
     [PostProcessBuild]
