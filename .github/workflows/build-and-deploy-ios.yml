@@ -9,7 +9,7 @@ on:
 jobs:
   build-and-deploy:
     name: Build Unity iOS & Upload to TestFlight
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 180
 
     steps:
