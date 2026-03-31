@@ -7,7 +7,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
-#pragma warning disable CS0618 // Suppress obsolete warnings for BuildTargetGroup API
+using UnityEditor.Build;
 
 public class BuildScript
 {
@@ -29,7 +29,7 @@ public class BuildScript
     private static void BuildiOS(iOSSdkVersion targetSDK)
     {
         string bundleId = GetEnvOrDefault("BUNDLE_ID", DEFAULT_BUNDLE_ID);
-        PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.iOS, bundleId);
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, bundleId);
 
         PlayerSettings.iOS.sdkVersion = targetSDK;
         // iOS 17 minimum for both simulator and device
@@ -106,35 +106,32 @@ public class BuildScript
 
     private static void SetiOSIcons()
     {
-        // Get the icon sizes Unity expects for iOS
-        var iconSizes = PlayerSettings.GetIconSizes(BuildTargetGroup.iOS);
-        var icons = new Texture2D[iconSizes.Length];
+        var platform = NamedBuildTarget.iOS;
+        var kinds = PlayerSettings.GetSupportedIconKinds(platform);
 
-        for (int i = 0; i < iconSizes.Length; i++)
+        foreach (var kind in kinds)
         {
-            int size = iconSizes[i];
-            string path = $"Assets/Icons/icon_{size}.png";
-            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if (tex != null)
+            var platIcons = PlayerSettings.GetPlatformIcons(platform, kind);
+
+            foreach (var platIcon in platIcons)
             {
-                icons[i] = tex;
+                int size = platIcon.width;
+                string path = $"Assets/Icons/icon_{size}.png";
+                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                if (tex != null)
+                {
+                    platIcon.SetTextures(tex);
+                }
+                else
+                {
+                    Debug.LogWarning($"Icon not found: {path} (size {size})");
+                }
             }
-            else
-            {
-                Debug.LogWarning($"Icon not found: {path} (size {size})");
-            }
+
+            PlayerSettings.SetPlatformIcons(platform, kind, platIcons);
         }
 
-        PlayerSettings.SetIcons(BuildTargetGroup.iOS, icons);
-
-        // Set default icon (used as fallback and App Store 1024x1024)
-        var defaultIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Icons/icon_1024.png");
-        if (defaultIcon != null)
-        {
-            PlayerSettings.SetIcons(BuildTargetGroup.Unknown, new Texture2D[] { defaultIcon });
-        }
-
-        Debug.Log($"iOS icons configured from Assets/Icons/ ({icons.Count(i => i != null)}/{iconSizes.Length} found)");
+        Debug.Log("iOS icons configured from Assets/Icons/");
     }
 
     [PostProcessBuild]
