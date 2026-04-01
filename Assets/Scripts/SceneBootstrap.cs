@@ -119,6 +119,9 @@ public class SceneBootstrap : MonoBehaviour
         var haptic = GameObject.Find("HapticManager");
         if (haptic != null) Destroy(haptic);
 
+        var audio = GameObject.Find("AudioManager");
+        if (audio != null) Destroy(audio);
+
         var pause = GameObject.Find("PauseMenu");
         if (pause != null) { Time.timeScale = 1f; Destroy(pause); }
 
@@ -169,6 +172,10 @@ public class SceneBootstrap : MonoBehaviour
         // Haptics
         var hapticObj = new GameObject("HapticManager");
         hapticObj.AddComponent<HapticManager>();
+
+        // Audio
+        var audioObj = new GameObject("AudioManager");
+        audioObj.AddComponent<AudioManager>();
 
         // Starfield
         var stars = new GameObject("Starfield");

@@ -259,6 +259,7 @@ public class RocketController : MonoBehaviour
     {
         dead = true;
         HapticManager.Instance?.Crash();
+        AudioManager.Instance?.PlayCrash();
         ExplosionFX.Spawn(transform.position, new Color(1f, 0.4f, 0.1f));
 
         rb.linearVelocity = Vector2.zero;
@@ -294,6 +295,7 @@ public class RocketController : MonoBehaviour
         if (ScoreDisplay.Instance != null)
             ScoreDisplay.Instance.AddScore(25, other.transform.position);
         HapticManager.Instance?.NearMiss();
+        AudioManager.Instance?.PlayNearMiss();
     }
 
     void CheckMoonNearMiss()
@@ -317,6 +319,7 @@ public class RocketController : MonoBehaviour
                 if (ScoreDisplay.Instance != null)
                     ScoreDisplay.Instance.AddScore(25, m.transform.position);
                 HapticManager.Instance?.NearMiss();
+        AudioManager.Instance?.PlayNearMiss();
             }
         }
     }
