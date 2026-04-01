@@ -18,6 +18,11 @@ public class AudioManager : MonoBehaviour
         coinClip = Resources.Load<AudioClip>("Audio/coin");
         missClip = Resources.Load<AudioClip>("Audio/miss");
         crashClip = Resources.Load<AudioClip>("Audio/crash");
+
+        // Prime iOS audio session to avoid first-play delay
+        source.volume = 0f;
+        source.PlayOneShot(coinClip);
+        source.volume = 1f;
     }
 
     public void PlayCoin()
