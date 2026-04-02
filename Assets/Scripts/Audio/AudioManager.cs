@@ -27,12 +27,12 @@ public class AudioManager : MonoBehaviour
 
     public void PlayCoin()
     {
-        if (coinClip != null) source.PlayOneShot(coinClip);
+        if (coinClip != null) source.PlayOneShot(coinClip, 0.55f);
     }
 
     public void PlayNearMiss()
     {
-        if (missClip != null) source.PlayOneShot(missClip);
+        if (missClip != null) source.PlayOneShot(missClip, 1.5f);
     }
 
     public void PlayCrash()
